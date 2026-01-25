@@ -1137,13 +1137,21 @@ main {
 }
 
 .landing-title {
-  font-size: clamp(26px, 5.28vw, 67px);
+  font-size: clamp(32px, 6.5vw, 80px);
   font-weight: 400;
-  line-height: 1;
-  letter-spacing: -0.025em;
+  line-height: 0.95;
+  letter-spacing: -0.03em;
   filter: blur(calc(var(--landing-blur) * 0.15 + var(--landing-loading-blur, 0px)));
   visibility: hidden;
   position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+}
+
+.landing-title-line {
+  display: block;
 }
 
 .landing-title.letters-ready {
@@ -1252,17 +1260,21 @@ main {
 
 .landing-title-blur-trace {
   position: absolute;
-  font-size: clamp(26px, 5.28vw, 67px);
+  font-size: clamp(32px, 6.5vw, 80px);
   font-weight: 400;
-  line-height: 1;
-  letter-spacing: -0.025em;
+  line-height: 0.95;
+  letter-spacing: -0.03em;
   color: #111;
   pointer-events: none;
   opacity: 0;
   transition: opacity 0.6s ease;
   -webkit-transition: opacity 0.6s ease;
   --blur-trace-pos: 0%;
-  --blur-trace-intensity: 0.25; /* Ridotto da 0.5 - più sofisticato */
+  --blur-trace-intensity: 0.25;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
   /* Logo nitido con reveal molto più sottile */
   filter: none;
   -webkit-filter: none;

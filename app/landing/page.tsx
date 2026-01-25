@@ -121,7 +121,7 @@ export default function LandingPage() {
     const titleEl = titleRef.current
     if (!titleEl) return
 
-    const rawText = "Sara Lorusso"
+    const lines = ["Sara", "Lorusso"]
     titleEl.innerHTML = ""
     
     const baseDelayMs = isLoading ? 0 : 200
@@ -129,17 +129,24 @@ export default function LandingPage() {
     const durationMs = 500
     
     let index = 0
-    rawText.split("").forEach((char) => {
-      const span = document.createElement("span")
-      span.className = "char"
-      span.style.setProperty("--char-delay", `${baseDelayMs + index * staggerMs}ms`)
-      span.style.setProperty("--char-duration", `${durationMs}ms`)
-      span.innerHTML = char === " " ? "&nbsp;" : char
-      titleEl.appendChild(span)
-      index++
+    lines.forEach((line) => {
+      const lineSpan = document.createElement("span")
+      lineSpan.className = "landing-title-line"
+      
+      line.split("").forEach((char) => {
+        const charSpan = document.createElement("span")
+        charSpan.className = "char"
+        charSpan.style.setProperty("--char-delay", `${baseDelayMs + index * staggerMs}ms`)
+        charSpan.style.setProperty("--char-duration", `${durationMs}ms`)
+        charSpan.textContent = char
+        lineSpan.appendChild(charSpan)
+        index++
+      })
+      
+      titleEl.appendChild(lineSpan)
     })
 
-    titleEl.setAttribute("aria-label", rawText)
+    titleEl.setAttribute("aria-label", "Sara Lorusso")
     if (!isLoading) {
       titleEl.classList.add("letters-ready")
     }
@@ -291,7 +298,8 @@ export default function LandingPage() {
       {/* Title/Logo unificato - stesso elemento per loader e titolo */}
       <div className="landing-title-wrap">
         <h1 ref={titleRef} className={`landing-title ${isLoading ? 'is-loading' : ''}`} data-text="Sara Lorusso">
-          Sara Lorusso
+          <span className="landing-title-line">Sara</span>
+          <span className="landing-title-line">Lorusso</span>
         </h1>
         {/* Blur trace pulsante che scorre avanti/indietro sulla scritta */}
         <div 
@@ -299,7 +307,8 @@ export default function LandingPage() {
           className={`landing-title-blur-trace ${!isLoading ? 'is-active' : ''}`} 
           aria-hidden="true"
         >
-          Sara Lorusso
+          <span className="landing-title-line">Sara</span>
+          <span className="landing-title-line">Lorusso</span>
         </div>
         {/* Progress bar durante loading */}
         <div className={`landing-title-progress ${isLoading ? 'is-visible' : ''}`}>
