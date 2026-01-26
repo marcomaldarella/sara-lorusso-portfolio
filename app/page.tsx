@@ -209,13 +209,13 @@ export default function Home() {
     isDraggingRef.current = false
     
     // Naviga solo se è stato un click senza drag
-    if (wasDragging && !hasDragged && !isLoading) {
+    if (wasDragging && !hasDragged) {
       setIsExiting(true)
       setTimeout(() => {
         router.push("/work")
       }, 600)
     }
-  }, [router, isLoading])
+  }, [router])
 
   const handlePointerLeave = useCallback(() => {
     isDraggingRef.current = false
