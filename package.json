@@ -11,7 +11,8 @@
     "sanity": "sanity dev",
     "sanity:build": "sanity build",
     "sanity:deploy": "sanity deploy",
-    "import:photos": "tsx scripts/import-photos.ts"
+    "import:photos": "tsx scripts/import-photos.ts",
+    "setup:cors": "tsx scripts/setup-cors.ts"
   },
   "dependencies": {
     "@hookform/resolvers": "^3.10.0",

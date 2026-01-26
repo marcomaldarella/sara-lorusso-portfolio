@@ -10,6 +10,7 @@ export const sanityConfig = {
   dataset,
   apiVersion,
   useCdn: false, // Set to true in production for faster, cheaper responses
+  ignoreBrowserTokenWarning: true, // Ignore browser token warning in development
 }
 
 // Create the Sanity client
