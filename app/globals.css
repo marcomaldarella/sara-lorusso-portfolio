@@ -1851,7 +1851,8 @@ body::-webkit-scrollbar {
   display: inline-block;
 }
 
-.about-letter-reveal.letters-ready {
+.about-letter-reveal.letters-ready,
+.about-letter-reveal.lines-ready {
   visibility: visible;
 }
 
@@ -1860,11 +1861,12 @@ body::-webkit-scrollbar {
   white-space: nowrap;
 }
 
-.about-letter-reveal .char {
-  display: inline-block;
-  animation: letter-reveal 0.25s cubic-bezier(0.16, 0.82, 0.2, 1) both;
+.about-letter-reveal .line {
+  display: block;
+  animation: line-reveal 0.4s cubic-bezier(0.16, 0.82, 0.2, 1) both;
   will-change: transform, opacity, filter;
   opacity: 0;
+  margin-bottom: 0.2em;
 }
 
 .about-reveal {
