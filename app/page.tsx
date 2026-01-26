@@ -11,12 +11,12 @@ const InfiniteCanvas = dynamic(
   { ssr: false }
 )
 
-// Sistema fluidodinamico coordinato con canvas motion
-const BASE_BLUR = 18 // Ridotto da 24 - più sofisticato
-const MIN_BLUR = 6 // Ridotto da 8
-const BASE_RADIUS = 0.32 // Aumentato da 0.28 - mostra più contenuto
-const MAX_RADIUS = 0.55
-const FLUID_SMOOTHING = 0.08
+// Sistema fluidodinamico coordinato con canvas motion migliorato
+const BASE_BLUR = 16 // Ridotto per maggiore chiarezza
+const MIN_BLUR = 4 // Ancora più nitido durante il movimento
+const BASE_RADIUS = 0.35 // Aumentato per mostrare più contenuto
+const MAX_RADIUS = 0.60 // Espande di più durante la navigazione
+const FLUID_SMOOTHING = 0.12 // Più responsivo per seguire meglio il mouse
 
 export default function Home() {
   const router = useRouter()
@@ -26,6 +26,7 @@ export default function Home() {
   const [isLoading, setIsLoading] = useState(true)
   const [loadProgress, setLoadProgress] = useState(0)
   const [isExiting, setIsExiting] = useState(false)
+  const [isFirstVisit, setIsFirstVisit] = useState(true)
   
   // Refs per gestione pointer (solo per click detection)
   const pointerStartRef = useRef({ x: 0, y: 0, time: 0 })
@@ -44,6 +45,14 @@ export default function Home() {
 
   // Caricamento immagini con progress (ora da Sanity)
   useEffect(() => {
+    // Controlla se è la prima visita
+    const hasVisited = sessionStorage.getItem('hasVisitedHome')
+    if (hasVisited) {
+      setIsFirstVisit(false)
+      setIsLoading(false)
+      setLoadProgress(100)
+    }
+    
     let mounted = true
     
     const loadPhotos = async () => {
@@ -51,7 +60,14 @@ export default function Home() {
         const photos = await getPhotosForCanvas()
         
         if (!mounted) return
+        setMedia(photos)
         
+        // Se non è la prima visita, carica immediatamente
+        if (!isFirstVisit) {
+          return
+        }
+        
+        // Altrimenti simula il caricamento con progress
         let loaded = 0
         const loadPromises = photos.map((photo) =>
           new Promise<MediaItem>((resolve) => {
@@ -86,7 +102,10 @@ export default function Home() {
           if (!mounted) return
           setMedia(loadedMedia)
           setTimeout(() => {
-            if (mounted) setIsLoading(false)
+            if (mounted) {
+              setIsLoading(false)
+              sessionStorage.setItem('hasVisitedHome', 'true')
+            }
           }, 400)
         })
       } catch (error) {
@@ -98,17 +117,38 @@ export default function Home() {
     loadPhotos()
 
     return () => { mounted = false }
-  }, [])
+  }, [isFirstVisit])
+
+  // Aggiorna il blur del titolo in base al progresso
+  useEffect(() => {
+    const titleEl = titleRef.current
+    if (!titleEl) return
+
+    if (isFirstVisit && isLoading) {
+      // Calcola blur: da 25px (0%) a 0px (100%)
+      const blurAmount = Math.max(0, 25 * (100 - loadProgress) / 100)
+      titleEl.style.setProperty('--title-blur', `${blurAmount}px`)
+    } else {
+      // Nessun blur se non è la prima visita o caricamento completato
+      titleEl.style.setProperty('--title-blur', '0px')
+    }
+  }, [loadProgress, isLoading, isFirstVisit])
 
   // Animazione titolo
   useEffect(() => {
     const titleEl = titleRef.current
     if (!titleEl) return
 
+    // Imposta blur iniziale se è la prima visita
+    if (isFirstVisit && isLoading) {
+      titleEl.style.setProperty('--title-blur', '25px')
+    }
+
     const lines = ["Sara", "Lorusso"]
     titleEl.innerHTML = ""
     
-    const baseDelayMs = isLoading ? 0 : 200
+    // Nessun delay se non è la prima visita
+    const baseDelayMs = (!isFirstVisit || !isLoading) ? 0 : 200
     const staggerMs = 15
     const durationMs = 500
     
@@ -131,10 +171,10 @@ export default function Home() {
     })
 
     titleEl.setAttribute("aria-label", "Sara Lorusso")
-    if (!isLoading) {
+    if (!isLoading || !isFirstVisit) {
       titleEl.classList.add("letters-ready")
     }
-  }, [isLoading])
+  }, [isLoading, isFirstVisit])
 
   // Callback per ricevere il motion state dal canvas
   const handleCanvasMotion = useCallback((motion: MotionState) => {
@@ -157,20 +197,20 @@ export default function Home() {
     const tick = () => {
       const fluid = fluidRef.current
 
-      // Smooth interpolation verso target (coordinato con canvas)
+      // Smooth interpolation verso target (coordinato con canvas migliorato)
       fluid.x += (fluid.targetX - fluid.x) * FLUID_SMOOTHING
       fluid.y += (fluid.targetY - fluid.y) * FLUID_SMOOTHING
       
-      // Raggio dinamico basato su velocità canvas
-      const speedFactor = Math.min(fluid.canvasSpeed * 0.8, 1)
+      // Raggio dinamico basato su velocità canvas con transizione più fluida
+      const speedFactor = Math.min(fluid.canvasSpeed * 1.2, 1) // Aumentato il moltiplicatore
       const targetRadius = BASE_RADIUS + (MAX_RADIUS - BASE_RADIUS) * speedFactor
-      fluid.radius += (targetRadius - fluid.radius) * 0.06
+      fluid.radius += (targetRadius - fluid.radius) * 0.08 // Leggermente più veloce
       
-      // Blur dinamico: più movimento = meno blur (rivela di più)
+      // Blur dinamico migliorato: più movimento = meno blur (rivela di più)
       const targetBlur = fluid.canvasDragging 
-        ? MIN_BLUR + (BASE_BLUR - MIN_BLUR) * 0.3  // Meno blur durante drag
-        : BASE_BLUR - (BASE_BLUR - MIN_BLUR) * speedFactor * 0.6
-      fluid.blur += (targetBlur - fluid.blur) * 0.05
+        ? MIN_BLUR + (BASE_BLUR - MIN_BLUR) * 0.2  // Ancora meno blur durante la navigazione
+        : BASE_BLUR - (BASE_BLUR - MIN_BLUR) * speedFactor * 0.8 // Maggiore riduzione del blur
+      fluid.blur += (targetBlur - fluid.blur) * 0.07 // Transizione più veloce
 
       // Applica stili CSS vignette
       container.style.setProperty('--vignette-x', `${(fluid.x * 100).toFixed(2)}%`)
@@ -252,13 +292,13 @@ export default function Home() {
 
       {/* Title/Logo unificato - stesso elemento per loader e titolo */}
       <div className="landing-title-wrap">
-        <h1 ref={titleRef} className={`landing-title ${isLoading ? 'is-loading' : ''}`} data-text="Sara Lorusso">
+        <h1 ref={titleRef} className={`landing-title ${isLoading && isFirstVisit ? 'is-loading' : ''}`} data-text="Sara Lorusso">
           <span className="landing-title-line">Sara</span>
           <span className="landing-title-line">Lorusso</span>
         </h1>
-        {/* Progress bar durante loading */}
-        <div className={`landing-title-progress ${isLoading ? 'is-visible' : ''}`}>
-          <div className="landing-title-progress-bar" style={{ width: `${loadProgress}%` }} />
+        {/* Progress bar durante loading - solo sotto il titolo */}
+        <div className={`landing-title-progress ${isLoading && isFirstVisit ? 'is-visible' : ''}`}>
+          <span className="landing-progress-percent-small">{loadProgress}%</span>
         </div>
       </div>
 

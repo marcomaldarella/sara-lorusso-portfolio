@@ -37,6 +37,13 @@ export const getTexture = (item: MediaItem, onLoad?: (texture: THREE.Texture) =>
       tex.generateMipmaps = true;
       tex.anisotropy = 4;
       tex.colorSpace = THREE.SRGBColorSpace;
+      
+      // Mantieni aspect ratio originale - non deformare
+      tex.wrapS = THREE.ClampToEdgeWrapping;
+      tex.wrapT = THREE.ClampToEdgeWrapping;
+      tex.repeat.set(1, 1);
+      tex.offset.set(0, 0);
+      
       tex.needsUpdate = true;
 
       loadCallbacks.get(key)?.forEach((cb) => {

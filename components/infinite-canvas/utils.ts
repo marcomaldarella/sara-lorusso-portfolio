@@ -60,8 +60,21 @@ export const generateChunkPlanes = (cx: number, cy: number, cz: number): PlaneDa
   for (let i = 0; i < 3; i++) {
     const s = seed + i * 1000;
     const r = (n: number) => seededRandom(s + n);
-    // Range molto più ampio: da 6 a 32 (più differenza tra piccole e grandi)
-    const size = 6 + r(4) * 26;
+    
+    // Genera dimensioni più varie per evitare stretch
+    const baseSize = 6 + r(4) * 26;
+    
+    // Varia l'aspect ratio: alcune orizzontali, alcune verticali, alcune quadrate
+    const aspectVariations = [
+      { x: 1, y: 1 },      // quadrata
+      { x: 1.33, y: 1 },   // orizzontale 4:3
+      { x: 1.5, y: 1 },    // orizzontale 3:2
+      { x: 1, y: 1.33 },   // verticale 3:4
+      { x: 1, y: 1.5 },    // verticale 2:3
+    ];
+    
+    const aspectChoice = Math.floor(r(6) * aspectVariations.length);
+    const aspect = aspectVariations[aspectChoice];
 
     planes.push({
       id: `${cx}-${cy}-${cz}-${i}`,
@@ -70,7 +83,7 @@ export const generateChunkPlanes = (cx: number, cy: number, cz: number): PlaneDa
         cy * CHUNK_SIZE + r(1) * CHUNK_SIZE,
         cz * CHUNK_SIZE + r(2) * CHUNK_SIZE
       ),
-      scale: new THREE.Vector3(size, size, 1),
+      scale: new THREE.Vector3(baseSize * aspect.x, baseSize * aspect.y, 1),
       mediaIndex: Math.floor(r(5) * 1_000_000),
     });
   }

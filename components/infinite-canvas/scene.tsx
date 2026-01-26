@@ -16,6 +16,10 @@ import {
   RENDER_DISTANCE,
   VELOCITY_DECAY,
   VELOCITY_LERP,
+  MOUSE_SENSITIVITY,
+  MOUSE_ACCELERATION,
+  WHEEL_SENSITIVITY,
+  MOUSE_SMOOTHING,
 } from "./constants";
 import styles from "./style.module.css";
 import { getTexture } from "./texture-manager";
@@ -203,9 +207,13 @@ function MediaPlane({
   const displayScale = React.useMemo(() => {
     if (media.width && media.height) {
       const aspect = media.width / media.height;
+      
+      // Sempre mantieni l'aspect ratio originale dell'immagine
+      // Usa l'altezza del plane come base e scala la larghezza proporzionalmente
       return new THREE.Vector3(scale.y * aspect, scale.y, 1);
     }
 
+    // Fallback: mantieni le dimensioni del plane così come sono
     return scale;
   }, [media.width, media.height, scale]);
 
@@ -406,20 +414,27 @@ function SceneController({
     canvas.style.cursor = "default";
 
     // Navigazione via mouse movement (non drag)
-    // Il mouse controlla direttamente la posizione della camera
+    // Il mouse controlla direttamente la posizione della camera con accelerazione dinamica
     const onMouseMove = (e: MouseEvent) => {
       // Posizione normalizzata -1 a 1
       const mx = (e.clientX / window.innerWidth) * 2 - 1;
       const my = -(e.clientY / window.innerHeight) * 2 + 1;
       
-      s.mouse = { x: mx, y: my };
-      // Aggiorna mouseRef per effetto finestra nelle MediaPlane
-      mouseRef.current = { x: mx, y: my };
+      // Smoothing del mouse per movimento più fluido
+      const prevMouse = s.mouse;
+      const smoothedMx = prevMouse.x + (mx - prevMouse.x) * MOUSE_SMOOTHING;
+      const smoothedMy = prevMouse.y + (my - prevMouse.y) * MOUSE_SMOOTHING;
       
-      // Navigazione continua basata sulla posizione del mouse
-      // Più il mouse è lontano dal centro, più veloce la navigazione
-      const mouseForceX = mx * 0.08;
-      const mouseForceY = my * 0.08;
+      s.mouse = { x: smoothedMx, y: smoothedMy };
+      // Aggiorna mouseRef per effetto finestra nelle MediaPlane
+      mouseRef.current = { x: smoothedMx, y: smoothedMy };
+      
+      // Navigazione continua con accelerazione basata sulla distanza dal centro
+      const distanceFromCenter = Math.sqrt(smoothedMx * smoothedMx + smoothedMy * smoothedMy);
+      const acceleration = Math.min(MOUSE_ACCELERATION, 1 + distanceFromCenter * MOUSE_ACCELERATION);
+      
+      const mouseForceX = smoothedMx * MOUSE_SENSITIVITY * acceleration;
+      const mouseForceY = smoothedMy * MOUSE_SENSITIVITY * acceleration;
       
       s.targetVel.x += mouseForceX;
       s.targetVel.y += mouseForceY;
@@ -432,7 +447,14 @@ function SceneController({
 
     const onWheel = (e: WheelEvent) => {
       e.preventDefault();
-      s.scrollAccum += e.deltaY * 0.006;
+      // Migliore sensibilità e controllo per lo scroll
+      const wheelDelta = e.deltaY * WHEEL_SENSITIVITY;
+      s.scrollAccum += wheelDelta;
+      
+      // Aggiungi anche movimento laterale per scroll orizzontale
+      if (Math.abs(e.deltaX) > 0) {
+        s.targetVel.x += e.deltaX * WHEEL_SENSITIVITY * 0.5;
+      }
     };
 
     const onTouchStart = (e: TouchEvent) => {
@@ -545,9 +567,10 @@ function SceneController({
     s.targetVel.y = clamp(s.targetVel.y, -MAX_VELOCITY, MAX_VELOCITY);
     s.targetVel.z = clamp(s.targetVel.z, -MAX_VELOCITY, MAX_VELOCITY);
 
-    // Lerp più morbido per sensazione fisica
-    s.velocity.x = lerp(s.velocity.x, s.targetVel.x, VELOCITY_LERP * 0.8);
-    s.velocity.y = lerp(s.velocity.y, s.targetVel.y, VELOCITY_LERP * 0.8);
+    // Lerp più responsivo per navigazione mouse migliorata
+    const responsiveLerp = VELOCITY_LERP;
+    s.velocity.x = lerp(s.velocity.x, s.targetVel.x, responsiveLerp);
+    s.velocity.y = lerp(s.velocity.y, s.targetVel.y, responsiveLerp);
     s.velocity.z = lerp(s.velocity.z, s.targetVel.z, VELOCITY_LERP);
 
     s.basePos.x += s.velocity.x;
@@ -556,9 +579,9 @@ function SceneController({
 
     camera.position.set(s.basePos.x + s.drift.x, s.basePos.y + s.drift.y, s.basePos.z);
 
-    // Decay più lento per inerzia
-    s.targetVel.x *= VELOCITY_DECAY * 0.98;
-    s.targetVel.y *= VELOCITY_DECAY * 0.98;
+    // Decay migliorato per inerzia più naturale
+    s.targetVel.x *= VELOCITY_DECAY;
+    s.targetVel.y *= VELOCITY_DECAY;
     s.targetVel.z *= VELOCITY_DECAY;
 
     const cx = Math.floor(s.basePos.x / CHUNK_SIZE);
