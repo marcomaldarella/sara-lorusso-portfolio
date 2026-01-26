@@ -23,6 +23,7 @@ export type InfiniteCanvasProps = {
   onMotion?: (motion: MotionState) => void;
   showFps?: boolean;
   showControls?: boolean;
+  showPreviewOverlay?: boolean;
   cameraFov?: number;
   cameraNear?: number;
   cameraFar?: number;

@@ -7,7 +7,10 @@ export default function Navigation() {
     <nav className="fixed top-0 w-full z-50">
       <div className="w-full pl-[0.75em] pr-[1em] py-[0.75em] flex items-start justify-between">
           <Link href="/" className="nav-name" aria-label="Sara Lorusso" style={{ fontFamily: '"Messina Sans", system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif', fontWeight: 400, paddingLeft: '8px', paddingRight: '8px', fontSize: '14px', lineHeight: '1' }}>
-            Sara Lorusso
+            <span className="nav-name-lines">
+              <span>Sara</span>
+              <span>Lorusso</span>
+            </span>
           </Link>
 
         <div className="flex gap-6 nav-menu" style={{ marginRight: '1em' }}>

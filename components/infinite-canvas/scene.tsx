@@ -21,6 +21,7 @@ import styles from "./style.module.css";
 import { getTexture } from "./texture-manager";
 import type { ChunkData, InfiniteCanvasProps, MediaItem, PlaneData } from "./types";
 import { generateChunkPlanesCached, getChunkUpdateThrottleMs, shouldThrottleUpdate } from "./utils";
+import { PreviewOverlay } from "./preview-overlay";
 
 const PLANE_GEOMETRY = new THREE.PlaneGeometry(1, 1);
 
@@ -81,6 +82,8 @@ function MediaPlane({
   chunkCz,
   cameraGridRef,
   mouseRef,
+  planePositionsRef,
+  planeId,
 }: {
   position: THREE.Vector3;
   scale: THREE.Vector3;
@@ -90,6 +93,8 @@ function MediaPlane({
   chunkCz: number;
   cameraGridRef: React.RefObject<CameraGridState>;
   mouseRef: React.RefObject<{ x: number; y: number }>;
+  planePositionsRef?: React.RefObject<Map<string, any>>;
+  planeId: string;
 }) {
   const meshRef = React.useRef<THREE.Mesh>(null);
   const materialRef = React.useRef<THREE.MeshBasicMaterial>(null);
@@ -102,6 +107,7 @@ function MediaPlane({
     offsetY: 0,
     textureOffsetX: 0,
     textureOffsetY: 0,
+    filename: `DSC_${String(Math.floor(Math.random() * 9000) + 1).padStart(4, '0')}.jpg`,
   });
 
   const [texture, setTexture] = React.useState<THREE.Texture | null>(null);
@@ -172,6 +178,25 @@ function MediaPlane({
     material.opacity = state.opacity > 0.99 ? 1 : state.opacity;
     material.depthWrite = state.opacity > 0.99;
     mesh.visible = state.opacity > INVIS_THRESHOLD;
+
+    // Track position for HTML overlay
+    if (planePositionsRef?.current && state.opacity > INVIS_THRESHOLD) {
+      planePositionsRef.current.set(planeId, {
+        id: planeId,
+        worldPosition: new THREE.Vector3(
+          position.x + state.offsetX, 
+          position.y + state.offsetY, 
+          position.z
+        ),
+        scale: new THREE.Vector3(displayScale.x * popScale, displayScale.y * popScale, displayScale.z),
+        visible: mesh.visible,
+        filename: state.filename,
+        imageWidth: media.width || 3,
+        imageHeight: media.height || 4,
+      });
+    } else if (planePositionsRef?.current) {
+      planePositionsRef.current.delete(planeId);
+    }
   });
 
   // Calculate display scale from media dimensions (from manifest)
@@ -241,6 +266,7 @@ function Chunk({
   media,
   cameraGridRef,
   mouseRef,
+  planePositionsRef,
 }: {
   cx: number;
   cy: number;
@@ -248,6 +274,7 @@ function Chunk({
   media: MediaItem[];
   cameraGridRef: React.RefObject<CameraGridState>;
   mouseRef: React.RefObject<{ x: number; y: number }>;
+  planePositionsRef?: React.RefObject<Map<string, any>>;
 }) {
   const [planes, setPlanes] = React.useState<PlaneData[] | null>(null);
 
@@ -287,6 +314,7 @@ function Chunk({
         return (
           <MediaPlane
             key={plane.id}
+            planeId={plane.id}
             position={plane.position}
             scale={plane.scale}
             media={mediaItem}
@@ -295,6 +323,7 @@ function Chunk({
             chunkCz={cz}
             cameraGridRef={cameraGridRef}
             mouseRef={mouseRef}
+            planePositionsRef={planePositionsRef}
           />
         );
       })}
@@ -334,8 +363,20 @@ const createInitialState = (camZ: number): ControllerState => ({
   pendingChunk: null,
 });
 
-function SceneController({ media, onTextureProgress, onMotion }: { media: MediaItem[]; onTextureProgress?: (progress: number) => void; onMotion?: (motion: import('./types').MotionState) => void }) {
-  const { camera, gl } = useThree();
+function SceneController({ 
+  media, 
+  onTextureProgress, 
+  onMotion,
+  planePositionsRef,
+  onFramesUpdate
+}: { 
+  media: MediaItem[]; 
+  onTextureProgress?: (progress: number) => void; 
+  onMotion?: (motion: import('./types').MotionState) => void;
+  planePositionsRef?: React.RefObject<Map<string, any>>;
+  onFramesUpdate?: (frames: any[]) => void;
+}) {
+  const { camera, gl, size } = useThree();
   const isTouchDevice = useIsTouchDevice();
   const keysRef = React.useRef<KeyboardKeys>({
     forward: false,
@@ -526,6 +567,42 @@ function SceneController({ media, onTextureProgress, onMotion }: { media: MediaI
 
     cameraGridRef.current = { cx, cy, cz, camZ: s.basePos.z };
 
+    // Convert 3D positions to screen coordinates for HTML overlay
+    const planePositions = planePositionsRef?.current;
+    if (onFramesUpdate && planePositions) {
+      const frames: any[] = [];
+      const tempVector = new THREE.Vector3();
+      
+      planePositions.forEach((planeData) => {
+        tempVector.copy(planeData.worldPosition);
+        tempVector.project(camera);
+        
+        // Check if in view
+        const inView = tempVector.x >= -1 && tempVector.x <= 1 && 
+                      tempVector.y >= -1 && tempVector.y <= 1 && 
+                      tempVector.z >= 0 && tempVector.z <= 1;
+                      
+        if (inView) {
+          const screenX = (tempVector.x * 0.5 + 0.5) * size.width;
+          const screenY = (tempVector.y * -0.5 + 0.5) * size.height;
+          const screenScale = Math.max(0.3, Math.min(1.2, planeData.scale.x * 0.15));
+          
+          frames.push({
+            id: planeData.id,
+            screenX,
+            screenY,
+            scale: screenScale,
+            visible: true,
+            filename: planeData.filename,
+            imageWidth: planeData.imageWidth,
+            imageHeight: planeData.imageHeight
+          });
+        }
+      });
+      
+      onFramesUpdate(frames);
+    }
+
     const key = `${cx},${cy},${cz}`;
     if (key !== s.lastChunkKey) {
       s.pendingChunk = { cx, cy, cz };
@@ -581,7 +658,7 @@ function SceneController({ media, onTextureProgress, onMotion }: { media: MediaI
   return (
     <>
       {chunks.map((chunk) => (
-        <Chunk key={chunk.key} cx={chunk.cx} cy={chunk.cy} cz={chunk.cz} media={media} cameraGridRef={cameraGridRef} mouseRef={mouseRef} />
+        <Chunk key={chunk.key} cx={chunk.cx} cy={chunk.cy} cz={chunk.cz} media={media} cameraGridRef={cameraGridRef} mouseRef={mouseRef} planePositionsRef={planePositionsRef} />
       ))}
     </>
   );
@@ -592,6 +669,7 @@ export function InfiniteCanvasScene({
   onTextureProgress,
   onMotion,
   showControls = false,
+  showPreviewOverlay = false,
   cameraFov = 60,
   cameraNear = 1,
   cameraFar = 500,
@@ -602,6 +680,13 @@ export function InfiniteCanvasScene({
 }: InfiniteCanvasProps) {
   const isTouchDevice = useIsTouchDevice();
   const dpr = Math.min(window.devicePixelRatio || 1, isTouchDevice ? 1.25 : 1.5);
+  // Create planePositionsRef at the scene level
+  const planePositionsRef = React.useRef<Map<string, any>>(new Map());
+  const [frames, setFrames] = React.useState<any[]>([]);
+
+  const handleFramesUpdate = React.useCallback((newFrames: any[]) => {
+    setFrames(newFrames);
+  }, []);
 
   if (!media.length) {
     return null;
@@ -618,8 +703,17 @@ export function InfiniteCanvasScene({
       >
         <color attach="background" args={[backgroundColor]} />
         <fog attach="fog" args={[fogColor, fogNear, fogFar]} />
-        <SceneController media={media} onTextureProgress={onTextureProgress} onMotion={onMotion} />
+        <SceneController 
+          media={media} 
+          onTextureProgress={onTextureProgress} 
+          onMotion={onMotion}
+          planePositionsRef={showPreviewOverlay ? planePositionsRef : undefined}
+          onFramesUpdate={showPreviewOverlay ? handleFramesUpdate : undefined}
+        />
       </Canvas>
+
+      {/* HTML overlay outside of Canvas */}
+      {showPreviewOverlay ? <PreviewOverlay frames={frames} /> : null}
 
       {showControls && (
         <div className={styles.controlsPanel}>

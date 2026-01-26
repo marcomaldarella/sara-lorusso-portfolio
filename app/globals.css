@@ -392,6 +392,16 @@ main {
   font-weight: 400;
 }
 
+/* Navbar: mobile tweaks and stacked title */
+.nav-name { display: inline-block; }
+.nav-name-lines { display: inline-flex; flex-direction: column; align-items: flex-start; line-height: 1; }
+.nav-name-lines span { display: block; }
+
+@media (max-width: 640px) {
+  nav > div { padding-top: 0.3em !important; }
+  .nav-name { font-size: 14px; }
+}
+
 .work-reel {
   position: relative;
   height: 100vh;
@@ -1139,7 +1149,7 @@ main {
 .landing-title {
   font-size: clamp(32px, 6.5vw, 80px);
   font-weight: 400;
-  line-height: 0.88; /* leggermente più stretto tra Sara e Lorusso */
+  line-height: 0.88;
   letter-spacing: -0.03em;
   filter: blur(calc(var(--landing-blur) * 0.15 + var(--landing-loading-blur, 0px)));
   visibility: hidden;
@@ -1156,6 +1166,18 @@ main {
 
 .landing-title.letters-ready {
   visibility: visible;
+}
+
+/* When the title animation completes, remove all blurs and filters */
+.landing-title.letters-ready {
+  filter: none !important;
+  -webkit-filter: none !important;
+  --landing-loading-blur: 0px;
+}
+.landing-title.letters-ready::after {
+  filter: none !important;
+  -webkit-filter: none !important;
+  opacity: 0.55;
 }
 
 .landing-title::after {
@@ -1328,6 +1350,175 @@ main {
   height: 100%;
   background: rgba(0,0,0,0.6);
   transition: width 0.2s ease-out;
+}
+
+/* Cookie banner styles */
+.cookie-banner {
+  position: fixed;
+  left: 50%;
+  transform: translateX(-50%);
+  bottom: 18px;
+  max-width: 920px;
+  width: calc(100% - 32px);
+  background: rgba(255,255,255,0.96);
+  box-shadow: 0 6px 22px rgba(0,0,0,0.08);
+  border-radius: 8px;
+  padding: 12px 14px;
+  z-index: 12000;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.cookie-banner-inner {
+  display: flex;
+  gap: 12px;
+  align-items: center;
+  justify-content: space-between;
+}
+.cookie-banner-text { flex: 1; font-size: 14px; color: #111 }
+.cookie-banner-actions { display: flex; gap: 8px }
+.cookie-banner-links { text-align: right; font-size: 13px; opacity: 0.8 }
+.btn { border: 1px solid rgba(0,0,0,0.08); padding: 6px 10px; border-radius: 6px; cursor: pointer; background: transparent }
+.btn-primary { background: #111; color: #fff; border: 0 }
+.btn-ghost { background: transparent }
+
+@media (max-width: 640px) {
+  .cookie-banner { bottom: 12px; padding: 10px }
+  .cookie-banner-text { font-size: 13px }
+}
+
+/* Canvas preview frames - complete macOS Preview windows */
+.canvas-preview-overlay {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  pointer-events: none;
+  z-index: 10;
+}
+
+.canvas-preview-window {
+  position: absolute;
+  pointer-events: none;
+  filter: drop-shadow(0 8px 24px rgba(0,0,0,0.12)) drop-shadow(0 2px 6px rgba(0,0,0,0.08));
+  z-index: 11;
+}
+
+.preview-window-frame {
+  width: 100%;
+  height: 100%;
+  background: #f6f6f6;
+  border-radius: 8px;
+  overflow: hidden;
+  border: 1px solid rgba(0,0,0,0.08);
+}
+
+.canvas-preview-window .preview-toolbar {
+  height: 28px;
+  background: linear-gradient(180deg, #fafafa 0%, #f0f0f0 100%);
+  border-bottom: 1px solid rgba(0,0,0,0.08);
+  display: flex;
+  align-items: center;
+  padding: 0 8px;
+  gap: 8px;
+  position: relative;
+}
+
+.canvas-preview-window .preview-buttons { 
+  display: flex; 
+  gap: 6px; 
+  align-items: center;
+  min-width: 20px;
+}
+
+.canvas-preview-window .preview-buttons .btn { 
+  width: 11px; 
+  height: 11px; 
+  border-radius: 50%; 
+  display: inline-block;
+  border: 0.5px solid rgba(0,0,0,0.12);
+}
+
+.canvas-preview-window .preview-buttons .btn.close { 
+  background: linear-gradient(135deg, #ff6159 0%, #ff3b30 100%);
+  box-shadow: inset 0 1px 0 rgba(255,255,255,0.2);
+}
+
+.canvas-preview-window .preview-buttons .btn.minimize { 
+  background: linear-gradient(135deg, #ffbd2e 0%, #ff9500 100%);
+  box-shadow: inset 0 1px 0 rgba(255,255,255,0.2);
+}
+
+.canvas-preview-window .preview-buttons .btn.maximize { 
+  background: linear-gradient(135deg, #28cd41 0%, #30d158 100%);
+  box-shadow: inset 0 1px 0 rgba(255,255,255,0.2);
+}
+
+.canvas-preview-window .preview-title { 
+  flex: 1; 
+  text-align: center; 
+  font-size: 11px; 
+  font-weight: 500;
+  color: #333; 
+  white-space: nowrap; 
+  overflow: hidden; 
+  text-overflow: ellipsis;
+  text-shadow: 0 1px 0 rgba(255,255,255,0.8);
+}
+
+.canvas-preview-window .preview-actions { 
+  width: 20px; 
+  text-align: right; 
+  opacity: 0.6; 
+}
+
+.canvas-preview-window .preview-actions .icon.expand { 
+  width: 9px; 
+  height: 9px; 
+  display: inline-block; 
+  background: #666;
+  opacity: 0.7;
+  mask: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 16 16"><path fill="black" d="M10 2h4v4h-1V3.5L9.5 7 9 6.5 12.5 3H10V2z"/></svg>') center / contain no-repeat;
+}
+
+.preview-content {
+  background: transparent;
+  position: relative;
+  overflow: hidden;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.preview-image-area {
+  width: 100%;
+  height: 100%;
+  background: transparent;
+  pointer-events: none;
+  /* This area will show the 3D image underneath */
+  object-fit: contain;
+}
+
+/* Responsive adjustments */
+@media (max-width: 640px) {
+  .canvas-preview-window { 
+    filter: drop-shadow(0 4px 12px rgba(0,0,0,0.1)); 
+  }
+  
+  .canvas-preview-window .preview-toolbar { 
+    height: 24px; 
+    padding: 0 6px; 
+  }
+  
+  .canvas-preview-window .preview-title { 
+    font-size: 10px; 
+  }
+  
+  .canvas-preview-window .preview-buttons .btn { 
+    width: 9px; 
+    height: 9px; 
+  }
 }
 
 /* Stato loading del titolo */

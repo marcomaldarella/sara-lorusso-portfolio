@@ -47,7 +47,6 @@ export default function LandingPage() {
   const router = useRouter()
   const containerRef = useRef<HTMLDivElement | null>(null)
   const titleRef = useRef<HTMLHeadingElement | null>(null)
-  const blurTraceRef = useRef<HTMLDivElement | null>(null)
   const [media, setMedia] = useState<MediaItem[]>([])
   const [isLoading, setIsLoading] = useState(true)
   const [loadProgress, setLoadProgress] = useState(0)
@@ -66,14 +65,6 @@ export default function LandingPage() {
     blur: BASE_BLUR,
     canvasSpeed: 0,
     canvasDragging: false
-  })
-  
-  // Stato blur trace pulsante - molto più sottile dopo prima apparizione
-  const blurTraceRef2 = useRef({
-    position: 0,
-    direction: 1,
-    pulse: 0,
-    cycles: 0 // Conta i cicli completati
   })
 
   // Caricamento immagini con progress
@@ -166,14 +157,12 @@ export default function LandingPage() {
   // Loop fluidodinamico coordinato con canvas
   useEffect(() => {
     const container = containerRef.current
-    const blurTrace = blurTraceRef.current
     if (!container) return
 
     let rafId = 0
 
     const tick = () => {
       const fluid = fluidRef.current
-      const trace = blurTraceRef2.current
 
       // Smooth interpolation verso target (coordinato con canvas)
       fluid.x += (fluid.targetX - fluid.x) * FLUID_SMOOTHING
@@ -195,33 +184,6 @@ export default function LandingPage() {
       container.style.setProperty('--vignette-y', `${(fluid.y * 100).toFixed(2)}%`)
       container.style.setProperty('--vignette-radius', `${(fluid.radius * 100).toFixed(2)}%`)
       container.style.setProperty('--landing-blur', `${fluid.blur.toFixed(2)}px`)
-      
-      // Animazione blur trace sul titolo (avanti/indietro pulsante)
-      if (blurTrace && !isLoading) {
-        // Velocità influenzata dal movimento canvas
-        const traceSpeed = 0.25 + speedFactor * 0.3 // Ridotto - più lento e sofisticato
-        trace.position += traceSpeed * trace.direction
-        
-        // Rimbalzo ai bordi - conta cicli
-        if (trace.position >= 100) {
-          trace.position = 100
-          trace.direction = -1
-          trace.cycles++
-        } else if (trace.position <= 0) {
-          trace.position = 0
-          trace.direction = 1
-        }
-        
-        // Pulsazione intensità - MOLTO ridotta dopo il primo ciclo
-        trace.pulse = (trace.pulse + 0.02) % (Math.PI * 2)
-        const basePulse = 0.3 + Math.sin(trace.pulse) * 0.2 // Ridotto da 0.5 + 0.5
-        // Dopo il primo ciclo, l'intensità si riduce progressivamente
-        const cycleMultiplier = Math.max(0.15, 1 - trace.cycles * 0.3)
-        const pulseIntensity = basePulse * cycleMultiplier
-        
-        blurTrace.style.setProperty('--blur-trace-pos', `${trace.position.toFixed(1)}%`)
-        blurTrace.style.setProperty('--blur-trace-intensity', `${pulseIntensity.toFixed(3)}`)
-      }
       
       rafId = requestAnimationFrame(tick)
     }
@@ -301,15 +263,6 @@ export default function LandingPage() {
           <span className="landing-title-line">Sara</span>
           <span className="landing-title-line">Lorusso</span>
         </h1>
-        {/* Blur trace pulsante che scorre avanti/indietro sulla scritta */}
-        <div 
-          ref={blurTraceRef} 
-          className={`landing-title-blur-trace ${!isLoading ? 'is-active' : ''}`} 
-          aria-hidden="true"
-        >
-          <span className="landing-title-line">Sara</span>
-          <span className="landing-title-line">Lorusso</span>
-        </div>
         {/* Progress bar durante loading */}
         <div className={`landing-title-progress ${isLoading ? 'is-visible' : ''}`}>
           <div className="landing-title-progress-bar" style={{ width: `${loadProgress}%` }} />
