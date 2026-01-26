@@ -19,7 +19,7 @@ export default function RootLayout({
   children: React.ReactNode
 }>) {
   const pathname = usePathname()
-  const showNavigation = pathname !== "/landing"
+  const showNavigation = pathname !== "/landing" && pathname !== "/"
 
   return (
     <html lang="it" suppressHydrationWarning>
