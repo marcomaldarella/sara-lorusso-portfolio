@@ -119,7 +119,7 @@ export default function AboutPage() {
       heroDelayMs = heroBase + heroChars * heroStagger + heroDuration + 120
     }
 
-    const splitLines = (el: HTMLElement) => {
+    const splitLetters = (el: HTMLElement) => {
       if (el.dataset.lettersReady === "true") return
       const rawText = el.textContent ?? ""
       const text = normalizeText(rawText)
@@ -132,27 +132,35 @@ export default function AboutPage() {
       el.dataset.lettersReady = "true"
       el.innerHTML = ""
 
-      const sentences = text.split(/([.!?]+)/).filter(s => s.trim())
-      let lineIndex = 0
-      sentences.forEach((sentence) => {
-        if (!sentence.trim()) return
-        const line = document.createElement("span")
-        line.className = "line"
-        line.setAttribute("aria-hidden", "true")
-        line.style.setProperty("animation-delay", `${baseDelay + lineIndex * 200}ms`, "important")
-        line.style.setProperty("animation-duration", `${durationMs}ms`, "important")
-        line.textContent = sentence
-        el.appendChild(line)
-        lineIndex += 1
+      const tokens = text.match(/[^\s\u00a0]+|[\s\u00a0]+/g) || []
+      let index = 0
+      tokens.forEach((token) => {
+        if (/^[\s\u00a0]+$/.test(token)) {
+          el.appendChild(document.createTextNode(token))
+          return
+        }
+        const word = document.createElement("span")
+        word.className = "word"
+        Array.from(token).forEach((char) => {
+          const span = document.createElement("span")
+          span.className = "char"
+          span.setAttribute("aria-hidden", "true")
+          span.style.setProperty("animation-delay", `${baseDelay + index * staggerMs}ms`, "important")
+          span.style.setProperty("animation-duration", `${durationMs}ms`, "important")
+          span.innerHTML = char === " " ? "&nbsp;" : char
+          word.appendChild(span)
+          index += 1
+        })
+        el.appendChild(word)
       })
 
       el.setAttribute("aria-label", text)
-      el.classList.add("lines-ready")
+      el.classList.add("letters-ready")
     }
 
     const elements = Array.from(document.querySelectorAll<HTMLElement>(".about-letter-reveal"))
     requestAnimationFrame(() => {
-      elements.forEach(splitLines)
+      elements.forEach(splitLetters)
     })
   }, [])
 

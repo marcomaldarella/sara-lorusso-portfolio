@@ -24,8 +24,7 @@ export default function CookieBanner() {
     <div className="cookie-banner" role="dialog" aria-live="polite">
       <div className="cookie-banner-inner">
         <div className="cookie-banner-text">
-          This site uses cookies to enhance your experience. By continuing to use this
-          site you accept our use of cookies. Learn more in our Privacy & Cookies page.
+          This site uses cookies to enhance your experience. By continuing you accept our use of cookies.
         </div>
 
         <div className="cookie-banner-actions">
