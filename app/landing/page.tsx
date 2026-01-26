@@ -4,37 +4,12 @@ import dynamic from "next/dynamic"
 import { useEffect, useRef, useState, useCallback } from "react"
 import { useRouter } from "next/navigation"
 import type { MediaItem, MotionState } from "@/components/infinite-canvas/types"
+import { getPhotosForCanvas } from "@/lib/photos"
 
 const InfiniteCanvas = dynamic(
   () => import("@/components/infinite-canvas").then((mod) => mod.InfiniteCanvas),
   { ssr: false }
 )
-
-// Foto originali + foto random dalle nuove gallery
-const getRandomImages = () => {
-  const originalImages = [
-    "/1.jpg", "/10.jpg", "/11.jpg", "/12.jpg", "/13.jpg", "/14.jpg", "/15.jpg", "/16.jpg",
-    "/17.jpg", "/18.jpg", "/19.jpg", "/20.jpg", "/21.jpg", "/22.jpg", "/23.jpg", "/24.jpg",
-    "/25.jpg", "/26.jpg", "/27.jpg", "/28.jpg", "/29.jpg", "/30.jpg", "/31.jpg", "/32.jpg",
-    "/33.jpg", "/34.jpg", "/35.jpg"
-  ]
-  
-  const workImages = Array.from({ length: 63 }, (_, i) => 
-    `/works/${String(i + 1).padStart(2, '0')}.jpg`
-  )
-  const commissionedImages = Array.from({ length: 26 }, (_, i) => 
-    `/commissioned/${String(i + 1).padStart(2, '0')}.jpg`
-  )
-  
-  const allNewImages = [...workImages, ...commissionedImages]
-  const shuffled = [...allNewImages].sort(() => Math.random() - 0.5)
-  const selectedNew = shuffled.slice(0, 12)
-  
-  const combined = [...originalImages, ...selectedNew]
-  return combined.filter((img, idx, arr) => arr.indexOf(img) === idx)
-}
-
-const imageSources = getRandomImages()
 
 // Sistema fluidodinamico coordinato con canvas motion
 const BASE_BLUR = 18 // Ridotto da 24 - più sofisticato
@@ -67,42 +42,60 @@ export default function LandingPage() {
     canvasDragging: false
   })
 
-  // Caricamento immagini con progress
+  // Caricamento immagini con progress (ora da Sanity)
   useEffect(() => {
     let mounted = true
-    let loaded = 0
     
-    const items: MediaItem[] = imageSources.map((src) => ({
-      url: src,
-      width: 3,
-      height: 4,
-    }))
-    setMedia(items)
+    const loadPhotos = async () => {
+      try {
+        const photos = await getPhotosForCanvas()
+        
+        if (!mounted) return
+        
+        let loaded = 0
+        const loadPromises = photos.map((photo) =>
+          new Promise<MediaItem>((resolve) => {
+            const img = new Image()
+            img.src = photo.url
+            img.onload = () => {
+              loaded++
+              if (mounted) setLoadProgress(Math.round((loaded / photos.length) * 100))
+              resolve({ 
+                url: photo.url, 
+                width: photo.width || img.naturalWidth || 3, 
+                height: photo.height || img.naturalHeight || 4,
+                _id: photo._id,
+                category: photo.category
+              })
+            }
+            img.onerror = () => {
+              loaded++
+              if (mounted) setLoadProgress(Math.round((loaded / photos.length) * 100))
+              resolve({ 
+                url: photo.url, 
+                width: photo.width || 3, 
+                height: photo.height || 4,
+                _id: photo._id,
+                category: photo.category
+              })
+            }
+          })
+        )
 
-    const loadPromises = imageSources.map((src) =>
-      new Promise<MediaItem>((resolve) => {
-        const img = new Image()
-        img.src = src
-        img.onload = () => {
-          loaded++
-          if (mounted) setLoadProgress(Math.round((loaded / imageSources.length) * 100))
-          resolve({ url: src, width: img.naturalWidth || 3, height: img.naturalHeight || 4 })
-        }
-        img.onerror = () => {
-          loaded++
-          if (mounted) setLoadProgress(Math.round((loaded / imageSources.length) * 100))
-          resolve({ url: src, width: 3, height: 4 })
-        }
-      })
-    )
-
-    Promise.all(loadPromises).then((loadedMedia) => {
-      if (!mounted) return
-      setMedia(loadedMedia)
-      setTimeout(() => {
+        Promise.all(loadPromises).then((loadedMedia) => {
+          if (!mounted) return
+          setMedia(loadedMedia)
+          setTimeout(() => {
+            if (mounted) setIsLoading(false)
+          }, 400)
+        })
+      } catch (error) {
+        console.error('Failed to load photos:', error)
         if (mounted) setIsLoading(false)
-      }, 400)
-    })
+      }
+    }
+
+    loadPhotos()
 
     return () => { mounted = false }
   }, [])
