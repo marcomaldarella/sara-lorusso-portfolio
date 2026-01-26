@@ -5,97 +5,9 @@ import { useEffect, useRef } from 'react'
 export default function AboutPage() {
   const containerRef = useRef<HTMLElement | null>(null)
   const heroRef = useRef<HTMLDivElement | null>(null)
+
   useEffect(() => {
-    if (!containerRef.current) return
-
-    let ro: ResizeObserver | null = null
-    let retryTimer: number | null = null
-    let attempts = 0
-    let fitRaf = 0
-
-    const setVar = (w: number) => {
-      if (containerRef.current) containerRef.current.style.setProperty('--nav-name-width', `${Math.round(w)}px`)
-    }
-
-    const update = () => {
-      const navName = document.querySelector('.nav-name') as HTMLElement | null
-      if (navName) {
-        const rect = navName.getBoundingClientRect()
-        setVar(rect.width)
-      }
-    }
-
-    const trySetup = () => {
-      const navName = document.querySelector('.nav-name') as HTMLElement | null
-      if (navName) {
-        update()
-        ro = new ResizeObserver(() => update())
-        ro.observe(navName)
-      } else if (attempts < 10) {
-        attempts += 1
-        retryTimer = window.setTimeout(trySetup, 100)
-      }
-    }
-
-    const fitHero = () => {
-      if (!containerRef.current || !heroRef.current) return
-
-      const viewportHeight = window.innerHeight
-      const minSize = 20
-      const maxSize = 76
-
-      let lo = minSize
-      let hi = maxSize
-
-      for (let i = 0; i < 10; i += 1) {
-        const mid = (lo + hi) / 2
-        heroRef.current.style.fontSize = `${mid}px`
-        const contentHeight = containerRef.current.scrollHeight
-        if (contentHeight <= viewportHeight) {
-          lo = mid
-        } else {
-          hi = mid
-        }
-      }
-
-      heroRef.current.style.fontSize = `${Math.floor(lo)}px`
-    }
-
-    const requestFit = () => {
-      if (fitRaf) cancelAnimationFrame(fitRaf)
-      fitRaf = requestAnimationFrame(() => fitHero())
-    }
-
-    trySetup()
-    requestFit()
-
-    // Recalculate after fonts have loaded to avoid layout shift
-    if (document.fonts && (document.fonts as any).ready && typeof (document.fonts as any).ready.then === 'function') {
-      ;(document.fonts as any).ready.then(() => {
-        update()
-        requestFit()
-      }).catch(() => {})
-    }
-
-    window.addEventListener('resize', update)
-    window.addEventListener('resize', requestFit)
-
-    return () => {
-      window.removeEventListener('resize', update)
-      window.removeEventListener('resize', requestFit)
-      if (ro) {
-        try {
-          ro.disconnect()
-        } catch (e) {}
-        ro = null
-      }
-      if (retryTimer) {
-        clearTimeout(retryTimer)
-      }
-      if (fitRaf) {
-        cancelAnimationFrame(fitRaf)
-      }
-    }
+    window.scrollTo(0, 0)
   }, [])
 
   useEffect(() => {
@@ -107,33 +19,15 @@ export default function AboutPage() {
       return text
     }
 
-    const heroEl = document.querySelector<HTMLElement>(".editorial-hero.about-letter-reveal")
-    let heroDelayMs = 0
-
-    if (heroEl) {
-      const heroText = normalizeText(heroEl.textContent ?? "")
-      const heroStagger = Number(heroEl.dataset.letterStagger || 4)
-      const heroDuration = Number(heroEl.dataset.letterDuration || 260)
-      const heroBase = Number(heroEl.dataset.delayStart || 0)
-      const heroChars = Math.max(0, Array.from(heroText).length - 1)
-      heroDelayMs = heroBase + heroChars * heroStagger + heroDuration + 120
-    }
-
     const splitLetters = (el: HTMLElement) => {
       if (el.dataset.lettersReady === "true") return
       const rawText = el.textContent ?? ""
       const text = normalizeText(rawText)
       if (!text.replace(/\u00a0/g, "").trim()) return
-      const isHero = el === heroEl || el.classList.contains("editorial-hero")
-      const baseDelay = Number(el.dataset.delayStart || 0) + (isHero ? 0 : heroDelayMs)
-      const isSmall = el.classList.contains("text-xs") || el.closest(".text-xs") !== null
-      const staggerMs = Number(el.dataset.letterStagger || (isHero ? 4 : isSmall ? 2 : 3))
-      const durationMs = Number(el.dataset.letterDuration || (isHero ? 260 : isSmall ? 180 : 200))
       el.dataset.lettersReady = "true"
       el.innerHTML = ""
 
       const tokens = text.match(/[^\s\u00a0]+|[\s\u00a0]+/g) || []
-      let index = 0
       tokens.forEach((token) => {
         if (/^[\s\u00a0]+$/.test(token)) {
           el.appendChild(document.createTextNode(token))
@@ -145,11 +39,8 @@ export default function AboutPage() {
           const span = document.createElement("span")
           span.className = "char"
           span.setAttribute("aria-hidden", "true")
-          span.style.setProperty("animation-delay", `${baseDelay + index * staggerMs}ms`, "important")
-          span.style.setProperty("animation-duration", `${durationMs}ms`, "important")
           span.innerHTML = char === " " ? "&nbsp;" : char
           word.appendChild(span)
-          index += 1
         })
         el.appendChild(word)
       })
@@ -162,10 +53,6 @@ export default function AboutPage() {
     requestAnimationFrame(() => {
       elements.forEach(splitLetters)
     })
-  }, [])
-
-  useEffect(() => {
-    window.scrollTo(0, 0)
   }, [])
 
   return (
@@ -181,84 +68,51 @@ export default function AboutPage() {
         />
 
         <section className="container relative z-10">
-
           <div
             ref={heroRef}
             className="editorial-hero about-letter-reveal"
             data-delay-start="0"
           >
-            {"\u00A0\u00A0\u00A0\u00A0\u00A0\u00A0\u00A0\u00A0\u00A0\u00A0\u00A0\u00A0\u00A0\u00A0\u00A0\u00A0"}(b. 1995, Italy) is an Italian photographer and visual artist living and working between Bologna and Milan. Her practice investigates themes of intimacy, femininity, and affective relationships, developing a visual language that blends diaristic intimacy with documentary rigor.
+            (b. 1995, Italy) is an Italian photographer and visual artist living and working between Bologna and Milan. Her practice investigates themes of intimacy, femininity, and affective relationships, developing a visual language that blends diaristic intimacy with documentary rigor.
           </div>
 
           <div className="editorial-columns">
-            <div className="editorial-services-block editorial-helvetica">
-              <h3 className="text-xs mb-4 about-letter-reveal" data-delay-start="520">Services:</h3>
-              <div className="text-xs leading-tight">
-                <div className="about-letter-reveal" data-delay-start="560">Art Buying</div>
-                <div className="about-letter-reveal" data-delay-start="590">Art Direction</div>
-                <div className="about-letter-reveal" data-delay-start="620">Campaign Production</div>
-                <div className="about-letter-reveal" data-delay-start="650">Content Development</div>
-                <div className="about-letter-reveal" data-delay-start="680">Creative Consultancy</div>
-                <div className="about-letter-reveal" data-delay-start="710">Visual Strategy</div>
-              </div>
+            <div className="editorial-services-block">
+              <h3 className="about-letter-reveal" data-delay-start="520">Services:</h3>
+              <ul>
+                <li className="about-letter-reveal" data-delay-start="560">Art Buying</li>
+                <li className="about-letter-reveal" data-delay-start="590">Art Direction</li>
+                <li className="about-letter-reveal" data-delay-start="620">Campaign Production</li>
+                <li className="about-letter-reveal" data-delay-start="650">Content Development</li>
+                <li className="about-letter-reveal" data-delay-start="680">Creative Consultancy</li>
+                <li className="about-letter-reveal" data-delay-start="710">Visual Strategy</li>
+              </ul>
             </div>
 
             <div className="editorial-bio-block">
-              <div className="text-xs leading-relaxed about-bio">
-                {/* lead paragraph moved to top hero area for editorial layout */}
-
-                <p className="editorial-bio-paragraph about-letter-reveal" data-delay-start="240">
-                  {"\u00A0\u00A0\u00A0\u00A0\u00A0\u00A0"}Lorusso’s work has been shown in solo and group exhibitions internationally, including the IKS
-                  Institute, Düsseldorf; The Bridge and Tunnel Gallery, New York; and Melkweg Gallery, Amsterdam.
-                  Since 2019, she has co-founded and served as Creative Director of Mulieris Magazine. In 2020, she
-                  appeared in Le Fotografe, a Sky Arte docuseries profiling Italian women photographers. In 2022,
-                  she published her first photobook ‘‘As a Flower’’ edited by Witty Books.
-                </p>
-
-                <p className="editorial-bio-paragraph editorial-bio-second about-letter-reveal" data-delay-start="320">
-                  Her photographic work is included in both private and public collections and continues to explore
-                  the intersections of personal narrative, affective connection, and visual storytelling.
-                </p>
-              </div>
+              <p className="about-letter-reveal" data-delay-start="240">Lorusso’s work has been shown in solo and group exhibitions internationally, including the IKS Institute, Düsseldorf; The Bridge and Tunnel Gallery, New York; and Melkweg Gallery, Amsterdam. Since 2019, she has co-founded and served as Creative Director of Mulieris Magazine. In 2020, she appeared in Le Fotografe, a Sky Arte docuseries profiling Italian women photographers. In 2022, she published her first photobook "As a Flower" edited by Witty Books.</p>
+              <p className="about-letter-reveal" data-delay-start="320">Her photographic work is included in both private and public collections and continues to explore the intersections of personal narrative, affective connection, and visual storytelling.</p>
             </div>
 
-            <div className="editorial-clients-block editorial-helvetica">
-              <h3 className="text-xs mb-2 about-letter-reveal" data-delay-start="700">Clients</h3>
-              <p className="about-letter-reveal" data-delay-start="760">{"\u00A0\u00A0\u00A0\u00A0\u00A0\u00A0"}About You, Adidas, Burberry, British Airways, Cos, Demellier London, Facebook, Florentine Vintage, Gq, Harper’s Bazaar, Harvey Nichols, Htsi, Love Want, Marie Claire, Métier, Monocle, Net-A-Porter, One&Only, Polaroid, Selfridges & Co, Soho House, Studio Nicholson, Thom Browne New York, Vogue, Venroy, Wallpaper*, Zara, Zeus+Dione</p>
+            <div className="editorial-clients-block">
+              <h3 className="about-letter-reveal" data-delay-start="700">Clients:</h3>
+              <p className="about-letter-reveal" data-delay-start="760">About You, Adidas, Burberry, British Airways, Cos, Demellier London, Facebook, Florentine Vintage, Gq, Harper’s Bazaar, Harvey Nichols, Htsi, Love Want, Marie Claire, Métier, Monocle, Net-A-Porter, One&Only, Polaroid, Selfridges & Co, Soho House, Studio Nicholson, Thom Browne New York, Vogue, Venroy, Wallpaper*, Zara, Zeus+Dione</p>
 
-              <div className="editorial-contact editorial-helvetica">
-                <h3 className="text-xs mt-6 mb-2 about-letter-reveal" data-delay-start="860">Contact</h3>
-                <p><a className="about-letter-reveal" data-delay-start="920" href="https://www.instagram.com/loruponyo/">@loruponyo</a></p>
-                <p><a className="about-letter-reveal" data-delay-start="980" href="mailto:lorussosara1995@gmail.com">lorussosara1995@gmail.com</a></p>
-              </div>
+              <h3 className="about-letter-reveal" data-delay-start="860">Contact:</h3>
+              <p><a className="about-letter-reveal" data-delay-start="920" href="https://www.instagram.com/loruponyo/">@loruponyo</a></p>
+              <p><a className="about-letter-reveal" data-delay-start="980" href="mailto:lorussosara1995@gmail.com">lorussosara1995@gmail.com</a></p>
             </div>
 
-            <div className="editorial-pubs-block editorial-helvetica">
-              <div className="editorial-pubs-grid">
-                <div>
-                  <h3 className="text-xs mb-2 about-letter-reveal" data-delay-start="700">Selected publications</h3>
-                  <div className="text-xs space-y-1">
-                    <p className="about-letter-reveal" data-delay-start="760">{"\u00A0\u00A0\u00A0\u00A0\u00A0\u00A0"}ID Magazine, Vogue Italia, Dazed, Artribune, D – La Repubblica, Deir Grief, interview.de,</p>
-                    <p className="about-letter-reveal" data-delay-start="820">L’Espresso, Causette Fr, Ze.tt, British Journal of Photography, Rolling Stone, Marie Claire IT,</p>
-                    <p className="about-letter-reveal" data-delay-start="880">Cosmopolitan, Vice UK, Glamour, Elle, Nomas magazine and others.</p>
-                  </div>
-                </div>
+            <div className="editorial-pubs-block">
+              <h3 className="about-letter-reveal" data-delay-start="700">Selected publications:</h3>
+              <p className="about-letter-reveal" data-delay-start="760">ID Magazine, Vogue Italia, Dazed, Artribune, D – La Repubblica, Deir Grief, interview.de, L’Espresso, Causette Fr, Ze.tt, British Journal of Photography, Rolling Stone, Marie Claire IT, Cosmopolitan, Vice UK, Glamour, Elle, Nomas magazine and others.</p>
 
-                <div>
-                  <h3 className="text-xs mb-2 about-letter-reveal" data-delay-start="700">Selected clients</h3>
-                  <div className="text-xs space-y-1">
-                    <p className="about-letter-reveal" data-delay-start="760">{"\u00A0\u00A0\u00A0\u00A0\u00A0\u00A0"}Vans, Nike woman, Slam Jam, Puma, Levis’, MI AMI, Carhartt Wip, Motorola, Momonì, Karhu,</p>
-                    <p className="about-letter-reveal" data-delay-start="820">Simona Vanth, Caudalie, AtticandBarn, Marco Rambaldi... Full Commercial Portfolio on request.</p>
-                  </div>
-                </div>
-              </div>
+              <h3 className="about-letter-reveal" data-delay-start="700">Selected clients:</h3>
+              <p className="about-letter-reveal" data-delay-start="760">Vans, Nike woman, Slam Jam, Puma, Levis’, MI AMI, Carhartt Wip, Motorola, Momonì, Karhu, Simona Vanth, Caudalie, AtticandBarn, Marco Rambaldi... Full Commercial Portfolio on request.</p>
             </div>
           </div>
-
         </section>
       </main>
-
-      {/* Global styles moved to app/globals.css */}
     </>
   )
 }

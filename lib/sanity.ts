@@ -13,16 +13,33 @@ export const sanityConfig = {
   ignoreBrowserTokenWarning: true, // Ignore browser token warning in development
 }
 
-// Create the Sanity client
-export const sanityClient = createClient(sanityConfig)
+// Create the Sanity client with error handling
+export const sanityClient = projectId && projectId !== "your-project-id" 
+  ? createClient(sanityConfig)
+  : null
 
 // Helper for image URLs
-const builder = createImageUrlBuilder(sanityClient)
-export const urlFor = (source: any) => builder.image(source)
+const builder = sanityClient ? createImageUrlBuilder(sanityClient) : null
+export const urlFor = (source: any) => {
+  if (!builder) {
+    console.warn('Sanity image builder not available')
+    return { url: () => '' }
+  }
+  return builder.image(source)
+}
 
 // Convenience function for queries
 export async function sanityFetch<T = any>(query: string, params?: Record<string, any>): Promise<T> {
-  return sanityClient.fetch(query, params)
+  if (!sanityClient) {
+    throw new Error('Sanity client not configured - missing project ID')
+  }
+  
+  try {
+    return await sanityClient.fetch(query, params)
+  } catch (error) {
+    console.error('Sanity fetch error:', error)
+    throw error
+  }
 }
 
 // Common queries
