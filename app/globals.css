@@ -1122,9 +1122,6 @@ main {
     width: 18px;
     height: 18px;
   }
-  .landing-title::before {
-    animation: landing-clear-pulse 5s ease-in-out infinite;
-  }
   .editorial-bio-second {
     letter-spacing: -0.015em;
   }
@@ -1151,43 +1148,18 @@ main {
   font-weight: 400;
   line-height: 0.88;
   letter-spacing: -0.03em;
-  filter: blur(calc(var(--landing-blur) * 0.15 + var(--landing-loading-blur, 0px)));
-  visibility: hidden;
+  visibility: visible;
   position: relative;
   display: flex;
   flex-direction: column;
   align-items: center;
   text-align: center;
+  color: #000;
 }
 
 .landing-title-line {
   display: block;
 }
-
-.landing-title.letters-ready {
-  visibility: visible;
-}
-
-/* When the title animation completes, remove all blurs and filters */
-.landing-title.letters-ready {
-  filter: none !important;
-  -webkit-filter: none !important;
-  --landing-loading-blur: 0px;
-}
-.landing-title.letters-ready::after {
-  filter: none !important;
-  -webkit-filter: none !important;
-  opacity: 0.55;
-}
-
-.landing-title::after {
-  content: attr(data-text);
-  position: absolute;
-  inset: 0;
-  color: currentColor;
-  filter: blur(calc(var(--landing-blur) * 0.32 + var(--landing-loading-blur, 0px)));
-  opacity: 0.55;
-  pointer-events: none;
   mask-image: linear-gradient(
     90deg,
     rgba(0, 0, 0, 0) 0%,
@@ -1208,25 +1180,6 @@ main {
     rgba(0, 0, 0, 0.65) 74%,
     rgba(0, 0, 0, 0) 100%
   );
-}
-
-.landing-title::before {
-  content: attr(data-text);
-  position: absolute;
-  inset: 0;
-  color: currentColor;
-  opacity: 0;
-  filter: blur(0px);
-  pointer-events: none;
-}
-
-.landing-title:not(.letters-ready)::before {
-  opacity: 0;
-  animation: none;
-}
-
-.landing-title:not(.letters-ready)::after {
-  opacity: 0;
 }
 
 .landing-title .word {
