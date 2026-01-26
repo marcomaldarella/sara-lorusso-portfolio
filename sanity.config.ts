@@ -17,17 +17,6 @@ export default defineConfig({
 
   schema: {
     types: schemas,
-  },
 
-  studio: {
-    components: {
-      layout: (props) => {
-        return (
-          <div style={{ fontFamily: 'Inter, sans-serif' }}>
-            {props.renderDefault(props)}
-          </div>
-        )
-      }
-    }
   }
 })
