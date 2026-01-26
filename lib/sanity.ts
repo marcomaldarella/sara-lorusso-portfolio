@@ -26,11 +26,10 @@ export async function sanityFetch<T = any>(query: string, params?: Record<string
 
 // Common queries
 export const queries = {
-  // Get all artworks for the infinite canvas
-  getAllArtworks: `*[_type == "artwork"] | order(order asc, _createdAt desc) {
+  // Get all photos for the infinite canvas
+  getAllPhotos: `*[_type == "photo"] {
     _id,
     title,
-    slug,
     image {
       asset-> {
         _id,
@@ -41,24 +40,15 @@ export const queries = {
             height
           }
         }
-      },
-      alt
+      }
     },
-    category->{
-      title,
-      slug
-    },
-    year,
-    isCommissioned,
-    isFeatured,
-    order
+    category
   }`,
   
-  // Get featured artworks for homepage
-  getFeaturedArtworks: `*[_type == "artwork" && isFeatured == true] | order(order asc, _createdAt desc) {
+  // Get photos by category
+  getPhotosByCategory: `*[_type == "photo" && category == $category] {
     _id,
     title,
-    slug,
     image {
       asset-> {
         _id,
@@ -69,46 +59,7 @@ export const queries = {
             height
           }
         }
-      },
-      alt
-    },
-    category->{
-      title,
-      slug,
-      color
+      }
     }
-  }`,
-  
-  // Get site settings
-  getSiteSettings: `*[_type == "siteSettings"][0] {
-    title,
-    description,
-    keywords,
-    socialLinks,
-    aboutText
-  }`,
-  
-  // Get artworks by category
-  getArtworksByCategory: `*[_type == "artwork" && category->slug.current == $categorySlug] | order(order asc, _createdAt desc) {
-    _id,
-    title,
-    slug,
-    image {
-      asset-> {
-        _id,
-        url,
-        metadata {
-          dimensions {
-            width,
-            height
-          }
-        }
-      },
-      alt
-    },
-    year,
-    description,
-    dimensions,
-    medium
   }`,
 }
