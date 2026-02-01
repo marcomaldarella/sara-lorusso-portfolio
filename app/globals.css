@@ -765,10 +765,13 @@ main {
   display: flex;
   align-items: center;
   justify-content: center;
-  overflow: hidden;
+  overflow: contain;
   pointer-events: none;
   opacity: 0;
   transition: opacity 0.4s ease-out;
+  width: fit-content;
+  height: fit-content;
+  margin: auto;
 }
 
 /* Hero visibile quando la pagina è caricata */
@@ -1064,13 +1067,7 @@ main {
   max-width: 100%;
 }
 
-.work-stack-rotate {
-  transform: rotate(90deg);
-  transform-origin: center center;
-  max-width: 90vh;
-  max-height: 90vw;
-  object-fit: contain;
-}
+
 
 .editorial-hero {
   font-family: Romie, Georgia, 'Times New Roman', serif;
@@ -1111,6 +1108,10 @@ main {
 .editorial-services-block,
 .editorial-bio-block {
   grid-column: initial;
+}
+
+.editorial-bio-block {
+  padding-right: 90px;
 }
 
 .editorial-columns-secondary {
@@ -1212,6 +1213,7 @@ main {
 .editorial-selected-clients-block {
   opacity: 0.9;
   line-height: 1.45;
+  padding-bottom: 1em;
 }
 
 .editorial-contact-block {

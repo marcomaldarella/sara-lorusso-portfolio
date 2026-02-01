@@ -46,19 +46,19 @@ export default function AboutPage() {
 
               <div className="editorial-pubs-block md:max-w-[320px] w-full">
                 <h3>Selected publications:</h3>
-                <p>ID Magazine, Vogue Italia, Dazed, Artribune, D – La Repubblica, Deir Grief, interview.de, L'Espresso, Causette Fr, Ze.tt, British Journal of Photography, Rolling Stone, Marie Claire IT, Cosmopolitan, Vice UK, Glamour, Elle, Nomas magazine and others.</p>
+                <p>ID Magazine, Vogue Italia, Dazed, Artribune,<br />D – La Repubblica, Deir Grief, interview.de, L'Espresso,<br />Causette Fr, Ze.tt, British Journal of Photography, Rolling Stone,<br />Marie Claire IT, Cosmopolitan, Vice UK, Glamour, Elle,<br />Nomas magazine and others.</p>
               </div>
 
-              <div className="editorial-selected-clients-block md:max-w-[320px] w-full">
+              <div className="editorial-selected-clients-block md:max-w-[320px] w-full pb-[2em] md:pb-0">
                 <h3>Selected clients:</h3>
-                <p>Vans, Nike woman, Slam Jam, Puma, Levis', MI AMI, Carhartt Wip, Motorola, Momonì, Karhu, Simona Vanth, Caudalie, AtticandBarn, Marco Rambaldi...<br />Full Commercial Portfolio on request.</p>
+                <p>Vans, Nike woman, Slam Jam, Puma, Levis', MI AMI,<br />Carhartt Wip, Motorola, Momonì, Karhu, Simona Vanth, Caudalie, AtticandBarn, Marco Rambaldi.<br />Full Commercial Portfolio on request.</p>
               </div>
             </div>
 
             {/* Colonna destra: biografia completa (continuazione) */}
-            <div className="editorial-bio-block grid gap-0 w-full md:max-w-full md:col-start-2 md:order-none md:pr-10">
-              <p className="m-0 p-0 text-[1.2em] leading-[1.4em] md:text-[2em] md:leading-[1.28em]">
-                Lorusso’s work has been shown in solo and group exhibitions internationally, including the IKS Institute, Düsseldorf; The Bridge and Tunnel Gallery, New York; and Melkweg Gallery, Amsterdam. Since 2019, she has co-founded and served as Creative Director of Mulieris Magazine. In 2020, she appeared in Le Fotografe, a Sky Arte docuseries profiling Italian women photographers. In 2022, she published her first photobook “As a Flower” edited by Witty Books.<br /><br />Her photographic work is included in both private and public collections and continues to explore the intersections of personal narrative, affective connection, and visual storytelling.
+            <div className="editorial-bio-block grid gap-0 w-full md:max-w-full md:col-start-2 md:order-none md:pr-[2.5rem] pr-0">
+              <p className="m-0 p-0 text-[1.2em] leading-[1.4em] md:text-[2em] md:leading-[1.28em] pr-40">
+                Lorusso's work has been shown in solo and group exhibitions internationally, including the IKS Institute, Düsseldorf; The Bridge and Tunnel Gallery, New York; and Melkweg Gallery, Amsterdam. Since 2019, she has co-founded and served as Creative Director of Mulieris Magazine.<br />In 2020, she appeared in Le Fotografe, a Sky Arte docuseries profiling Italian women photographers. In 2022, she published her first photobook "As a Flower" edited by Witty Books.<br /><br />Her photographic work is included in both private and public collections and continues to explore the intersections of personal narrative, affective connection, and visual storytelling.
               </p>
             </div>
           </div>

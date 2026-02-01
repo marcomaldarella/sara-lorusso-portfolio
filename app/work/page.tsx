@@ -65,7 +65,6 @@ export default function Home() {
   const [isLoaded, setIsLoaded] = useState(false)
   const [marqueeIterations, setMarqueeIterations] = useState(3)
   const [wideMap, setWideMap] = useState<Record<string, boolean>>({})
-  const [rotateMap, setRotateMap] = useState<Record<string, boolean>>({})
   const reelRef = useRef<HTMLDivElement>(null)
   const stackScrollRef = useRef<HTMLDivElement>(null)
   const sliderRef = useRef<HTMLDivElement>(null)
@@ -121,18 +120,77 @@ export default function Home() {
   }, [])
 
   const stackGroups = useMemo(() => {
+    // Separare immagini wide (orizzontali) da verticali
+    const wideImages: typeof images = []
+    const verticalImages: typeof images = []
+    
+    images.forEach((img) => {
+      if (wideMap[img.src]) {
+        wideImages.push(img)
+      } else {
+        verticalImages.push(img)
+      }
+    })
+    
+    // Creare ordine: wide single, pair verticali, vertical single, repeat
+    const ordered: typeof images = []
+    let wideIdx = 0
+    let vertIdx = 0
+    let patternIndex = 0
+    
+    while (wideIdx < wideImages.length || vertIdx < verticalImages.length) {
+      const pattern = patternIndex % 3
+      
+      if (pattern === 0) {
+        // Wide single
+        if (wideIdx < wideImages.length) {
+          ordered.push(wideImages[wideIdx++])
+        }
+      } else if (pattern === 1) {
+        // Pair di verticali
+        if (vertIdx < verticalImages.length) {
+          ordered.push(verticalImages[vertIdx++])
+          if (vertIdx < verticalImages.length) {
+            ordered.push(verticalImages[vertIdx++])
+          }
+        }
+      } else {
+        // Vertical single
+        if (vertIdx < verticalImages.length) {
+          ordered.push(verticalImages[vertIdx++])
+        }
+      }
+      
+      patternIndex++
+    }
+    
+    // Creare gruppi dal nuovo ordine
     const groups: { pair: typeof images; single?: typeof images[0] }[] = []
-    for (let i = 0; i < images.length; i += 3) {
-      const pair = [images[i], images[i + 1]].filter(Boolean)
-      const single = images[i + 2]
-      if (pair.length) {
-        groups.push({ pair, single })
-      } else if (single) {
-        groups.push({ pair: [], single })
+    for (let i = 0; i < ordered.length; i += 3) {
+      const single1 = ordered[i]
+      const img2 = ordered[i + 1]
+      const img3 = ordered[i + 2]
+      
+      const pair = [img2, img3].filter(Boolean)
+      
+      // Se il primo è wide, è una single wide
+      if (wideMap[single1?.src]) {
+        groups.push({ pair: [], single: single1 })
+        if (pair.length > 0) {
+          groups.push({ pair, single: undefined })
+        }
+      } else {
+        // Altrimenti raggruppa normalmente
+        if (pair.length > 0) {
+          groups.push({ pair: [single1, ...pair].slice(0, 2), single: ordered[i + 2] })
+        } else if (single1) {
+          groups.push({ pair: [], single: single1 })
+        }
       }
     }
+    
     return groups
-  }, [])
+  }, [images, wideMap])
 
   useEffect(() => {
     if (viewMode === 'reel' && reelRef.current) {
@@ -407,14 +465,6 @@ export default function Home() {
   const handleAspectRecord = useCallback((src: string, width: number, height: number) => {
     const isWide = width > height
     setWideMap((prev) => (prev[src] === isWide ? prev : { ...prev, [src]: isWide }))
-
-    if (!isWide) {
-      setRotateMap((prev) => {
-        if (prev[src] !== undefined) return prev
-        const shouldRotate = Math.random() < 0.08 // bassa probabilità
-        return shouldRotate ? { ...prev, [src]: true } : prev
-      })
-    }
   }, [])
 
   return (
@@ -544,9 +594,9 @@ export default function Home() {
                   {group.single && (
                     <div
                       className={
-                        (wideMap[group.single.src] || rotateMap[group.single.src]
+                        wideMap[group.single.src]
                           ? "work-stack-full work-stack-full--bleed"
-                          : "work-stack-full work-stack-full--centered")
+                          : "work-stack-full work-stack-full--centered"
                       }
                       style={{
                         animationDelay: `${(groupIndex * 3 + 2) * 40}ms`,
@@ -555,7 +605,7 @@ export default function Home() {
                       <img
                         src={group.single.src}
                         alt=""
-                        className={`work-stack-full-img ${rotateMap[group.single.src] ? "work-stack-rotate" : ""}`}
+                        className="work-stack-full-img"
                         onLoad={(e) =>
                           handleAspectRecord(
                             group.single!.src,
