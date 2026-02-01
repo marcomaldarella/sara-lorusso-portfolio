@@ -1,6 +1,7 @@
 'use client'
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { useSearchParams } from 'next/navigation'
 
 // Immagini commissioned (26 foto)
 
@@ -35,30 +36,57 @@ const calculateMarqueeConfig = () => {
   }
 }
 
-// Immagini commissioned (26 foto)
-const images = Array.from({ length: 26 }, (_, i) => ({
+// Immagini commissioned (26 foto) con metadati opzionali
+type CommissionedImage = {
+  src: string
+  span: number
+  aspect: string
+  category?: string
+  caption?: string
+}
+
+const baseImages: CommissionedImage[] = Array.from({ length: 26 }, (_, i) => ({
   src: `/commissioned/${String(i + 1).padStart(2, '0')}.jpg`,
   span: 1,
   aspect: '3/4'
 }))
 
-const reelImages = [...images, ...images]
+const commissionedMeta: Record<string, { category?: string; caption?: string }> = {
+  // '/commissioned/01.jpg': { category: 'fashion', caption: 'Brand X — Campaign SS25' },
+}
+
+const imagesWithMeta: CommissionedImage[] = baseImages.map((img) => ({
+  ...img,
+  category: commissionedMeta[img.src]?.category,
+  caption: commissionedMeta[img.src]?.caption,
+}))
+
+// reelImages verrà costruito dopo il filtro per categoria
 
 type ViewMode = 'grid' | 'stack' | 'reel'
 
 const formatCounter = (value: number) => String(value).padStart(2, '0')
 
 // Calcola quante ripetizioni servono per coprire il viewport
-const getMarqueeIterations = () => {
+const getMarqueeIterations = (totalImages: number) => {
   if (typeof window === 'undefined') return 4
   const viewportWidth = window.innerWidth
   const THUMB_WIDTH = 60
   const thumbsPerViewport = Math.ceil(viewportWidth / THUMB_WIDTH)
   const requiredCoverage = thumbsPerViewport * 3
-  return Math.max(4, Math.ceil(requiredCoverage / images.length))
+  return Math.max(4, Math.ceil(requiredCoverage / Math.max(1, totalImages)))
 }
 
 export default function CommissionedPage() {
+  const searchParams = useSearchParams()
+  const selectedCategory = searchParams.get('category') || null
+  const currentImages = useMemo(() => {
+    if (!selectedCategory) return imagesWithMeta
+    const inCat = imagesWithMeta.filter((img) => img.category === selectedCategory)
+    const outCat = imagesWithMeta.filter((img) => img.category !== selectedCategory)
+    return [...inCat, ...outCat]
+  }, [selectedCategory])
+
   const [viewMode, setViewMode] = useState<ViewMode>('grid')
   const [transitionPhase, setTransitionPhase] = useState<'out' | 'in' | null>(null)
   const [heroIndex, setHeroIndex] = useState(0)
@@ -69,17 +97,18 @@ export default function CommissionedPage() {
   const reelRef = useRef<HTMLDivElement>(null)
   const stackScrollRef = useRef<HTMLDivElement>(null)
   const sliderRef = useRef<HTMLDivElement>(null)
-  const totalPhotos = images.length
+  const totalPhotos = currentImages.length
   const photoCounter = `${formatCounter(heroIndex + 1)}/${formatCounter(totalPhotos)}`
+  const reelImages = useMemo(() => [...currentImages, ...currentImages], [currentImages])
   
   // Array ripetuto per marquee - garantisce copertura completa viewport
   const marqueeImages = useMemo(() => {
     const result = []
     for (let i = 0; i < marqueeIterations; i++) {
-      result.push(...images)
+      result.push(...currentImages)
     }
     return result
-  }, [marqueeIterations])
+  }, [marqueeIterations, currentImages])
   
   // Stato per marquee con inerzia
   const sliderState = useRef({
@@ -90,7 +119,7 @@ export default function CommissionedPage() {
   // Aggiorna iterazioni su resize/load
   useEffect(() => {
     const updateIterations = () => {
-      setMarqueeIterations(getMarqueeIterations())
+      setMarqueeIterations(getMarqueeIterations(currentImages.length))
     }
     updateIterations()
     window.addEventListener('resize', updateIterations)
@@ -99,12 +128,12 @@ export default function CommissionedPage() {
       window.removeEventListener('resize', updateIterations)
       window.removeEventListener('orientationchange', updateIterations)
     }
-  }, [])
+  }, [currentImages.length])
 
   // Preload immagini + animazione iniziale
   useEffect(() => {
     const preloadImages = async () => {
-      const imagePromises = images.slice(0, 10).map((img) => {
+      const imagePromises = currentImages.slice(0, 10).map((img) => {
         return new Promise((resolve) => {
           const image = new Image()
           image.onload = resolve
@@ -118,21 +147,92 @@ export default function CommissionedPage() {
     }
     
     preloadImages()
-  }, [])
+  }, [currentImages])
+
+  // Precompute aspect ratio for all images before building stack groups
+  useEffect(() => {
+    if (viewMode !== 'stack') return
+    const toCheck = currentImages.filter((img) => wideMap[img.src] === undefined)
+    if (toCheck.length === 0) return
+
+    const tasks = toCheck.map((img) =>
+      new Promise<void>((resolve) => {
+        const im = new Image()
+        im.onload = () => {
+          const isWide = im.naturalWidth > im.naturalHeight
+          setWideMap((prev) => ({ ...prev, [img.src]: isWide }))
+          resolve()
+        }
+        im.onerror = () => resolve()
+        im.src = img.src
+      })
+    )
+    Promise.all(tasks).catch(() => {})
+  }, [viewMode, currentImages])
 
   const stackGroups = useMemo(() => {
-    const groups: { pair: typeof images; single?: typeof images[0] }[] = []
-    for (let i = 0; i < images.length; i += 3) {
-      const pair = [images[i], images[i + 1]].filter(Boolean)
-      const single = images[i + 2]
-      if (pair.length) {
-        groups.push({ pair, single })
-      } else if (single) {
-        groups.push({ pair: [], single })
+    const wideImages: CommissionedImage[] = []
+    const verticalImages: CommissionedImage[] = []
+
+    currentImages.forEach((img) => {
+      if (wideMap[img.src]) wideImages.push(img)
+      else verticalImages.push(img)
+    })
+
+    const groups: { pair: CommissionedImage[]; single?: CommissionedImage; rotate?: boolean }[] = []
+    let wi = 0
+    let vi = 0
+
+    // Vincolo: max 2 coppie di fila, poi una singola (wide o verticale)
+    const mulberry32 = (seed: number) => {
+      let t = seed >>> 0
+      return function () {
+        t += 0x6D2B79F5
+        let x = Math.imul(t ^ (t >>> 15), t | 1)
+        x ^= x + Math.imul(x ^ (x >>> 7), x | 61)
+        return ((x ^ (x >>> 14)) >>> 0) / 4294967296
       }
     }
+    const rand = mulberry32(Date.now())
+
+    // Shuffle verticali per dinamica
+    const shuffledVerticals = verticalImages.slice()
+    for (let i = shuffledVerticals.length - 1; i > 0; i--) {
+      const j = Math.floor(rand() * (i + 1))
+      ;[shuffledVerticals[i], shuffledVerticals[j]] = [shuffledVerticals[j], shuffledVerticals[i]]
+    }
+
+    let viIdx = 0
+    let wiIdx = 0
+    let pairStreak = 0
+
+    while (viIdx < shuffledVerticals.length || wiIdx < wideImages.length) {
+      if (pairStreak < 2 && viIdx + 1 < shuffledVerticals.length) {
+        groups.push({ pair: [shuffledVerticals[viIdx], shuffledVerticals[viIdx + 1]], single: undefined })
+        viIdx += 2
+        pairStreak += 1
+        continue
+      }
+
+      const canWide = wiIdx < wideImages.length
+      const canVertSingle = viIdx < shuffledVerticals.length
+      let useWide = false
+      if (canWide && canVertSingle) useWide = rand() < 0.5
+      else useWide = canWide && !canVertSingle
+
+      if (useWide && canWide) {
+        groups.push({ pair: [], single: wideImages[wiIdx++], rotate: false })
+      } else if (canVertSingle) {
+        const single = shuffledVerticals[viIdx++]
+        const shouldRotate = rand() < 0.25
+        groups.push({ pair: [], single, rotate: shouldRotate })
+      } else {
+        break
+      }
+      pairStreak = 0
+    }
     return groups
-  }, [])
+  }, [currentImages, wideMap])
 
   useEffect(() => {
     if (viewMode === 'reel' && reelRef.current) {
@@ -278,7 +378,8 @@ export default function CommissionedPage() {
         const centerOffset = viewportCenter - (loopedPosition + paddingLeft)
         // Usa rounding al thumb più vicino per evitare salti sul bordo
         const thumbIndex = Math.round(centerOffset / THUMB_WIDTH)
-        return ((thumbIndex % images.length) + images.length) % images.length
+        const len = Math.max(1, currentImages.length)
+        return ((thumbIndex % len) + len) % len
       }
 
       const syncNow = () => {
@@ -336,7 +437,7 @@ export default function CommissionedPage() {
         if (target.closest('.work-view-toggle') || target.closest('.nav-menu')) {
           return
         }
-        setHeroIndex((prev) => (prev + 1) % images.length) // aggiorna subito l'hero
+        setHeroIndex((prev) => (prev + 1) % Math.max(1, currentImages.length)) // aggiorna subito l'hero
         targetScroll += THUMB_WIDTH / SCROLL_MULTIPLIER
         syncNow()
       }
@@ -395,10 +496,10 @@ export default function CommissionedPage() {
       document.documentElement.style.overflow = ''
       document.removeEventListener('touchmove', preventScroll)
     }
-  }, [viewMode, marqueeImages.length])
+  }, [viewMode, marqueeImages.length, currentImages.length])
 
   const handleHeroNext = () => {
-    setHeroIndex((prev) => (prev + 1) % images.length)
+    setHeroIndex((prev) => (prev + 1) % Math.max(1, currentImages.length))
   }
 
   const handleAspectRecord = useCallback((src: string, width: number, height: number) => {
@@ -416,7 +517,7 @@ export default function CommissionedPage() {
 
   return (
     <>
-      <main className="w-full h-screen bg-white text-[#111]">
+      <main className={`w-full h-screen ${viewMode === 'reel' ? 'is-reel' : ''} bg-white text-[#111]`}>
         {/* View Switcher - Top Right */}
         <div className="fixed bottom-[1em] right-[1em] z-[100] flex items-center gap-4 text-xs nav-menu work-view-toggle">
           <span className="pointer-events-none work-photo-counter">{photoCounter}</span>
@@ -440,42 +541,49 @@ export default function CommissionedPage() {
           >
             {viewMode === 'grid' ? (
               <svg className="work-view-toggle-icon" width="16" height="16" viewBox="0 0 16 16">
-                <rect x="1" y="1" width="6" height="6" stroke="#111" fill="none" strokeWidth="1" />
-                <rect x="9" y="1" width="6" height="6" stroke="#111" fill="none" strokeWidth="1" />
-                <rect x="1" y="9" width="6" height="6" stroke="#111" fill="none" strokeWidth="1" />
-                <rect x="9" y="9" width="6" height="6" stroke="#111" fill="none" strokeWidth="1" />
+                <rect x="1" y="1" width="6" height="6" stroke="currentColor" fill="none" strokeWidth="1" />
+                <rect x="9" y="1" width="6" height="6" stroke="currentColor" fill="none" strokeWidth="1" />
+                <rect x="1" y="9" width="6" height="6" stroke="currentColor" fill="none" strokeWidth="1" />
+                <rect x="9" y="9" width="6" height="6" stroke="currentColor" fill="none" strokeWidth="1" />
               </svg>
             ) : viewMode === 'stack' ? (
               <svg className="work-view-toggle-icon" width="16" height="16" viewBox="0 0 16 16">
-                <rect x="1" y="1" width="6" height="6" stroke="#111" fill="none" strokeWidth="1" />
-                <rect x="9" y="1" width="6" height="6" stroke="#111" fill="none" strokeWidth="1" />
-                <rect x="1" y="9" width="14" height="6" stroke="#111" fill="none" strokeWidth="1" />
+                <rect x="1" y="1" width="6" height="6" stroke="currentColor" fill="none" strokeWidth="1" />
+                <rect x="9" y="1" width="6" height="6" stroke="currentColor" fill="none" strokeWidth="1" />
+                <rect x="1" y="9" width="14" height="6" stroke="currentColor" fill="none" strokeWidth="1" />
               </svg>
             ) : (
               <svg className="work-view-toggle-icon" width="16" height="16" viewBox="0 0 16 16">
-                <rect x="1" y="3" width="14" height="4" stroke="#111" fill="none" strokeWidth="1" />
-                <rect x="1" y="9" width="14" height="4" stroke="#111" fill="none" strokeWidth="1" />
+                <rect x="1" y="3" width="14" height="4" stroke="currentColor" fill="none" strokeWidth="1" />
+                <rect x="1" y="9" width="14" height="4" stroke="currentColor" fill="none" strokeWidth="1" />
               </svg>
             )}
           </button>
         </div>
-
         {/* Main Content Container */}
         <div className="w-full h-full">
           {viewMode === 'grid' ? (
             /* GRID VIEW - Photo + Marquee */
             <div className={`works-grid-view ${isLoaded ? 'is-loaded' : ''} ${transitionPhase === 'out' ? 'view-fade-out' : ''} ${transitionPhase === 'in' ? 'view-fade-in' : ''}`}>
-              {/* Overlay superiore - sfumatura sotto nav */}
               <div className="works-top-overlay" />
               
               {/* Central Photo - semplice crossfade */}
               <div className="works-grid-photo">
-                <img
-                  src={images[heroIndex].src}
-                  alt={`Photo ${heroIndex + 1}`}
-                  className="works-photo-img"
-                />
+                {currentImages.length > 0 && (
+                  <img
+                    src={currentImages[heroIndex]?.src}
+                    alt={`Photo ${heroIndex + 1}`}
+                    className="works-photo-img"
+                  />
+                )}
               </div>
+
+              {/* Caption nella view primaria (grid) */}
+              {viewMode === 'grid' && currentImages[heroIndex]?.caption && (
+                <div className="fixed bottom-[1em] left-[1em] z-[90] text-xs pointer-events-none">
+                  {currentImages[heroIndex]!.caption}
+                </div>
+              )}
 
               {/* Bottom Marquee - tre span per loop infinito */}
               <div ref={sliderRef} className="works-grid-marquee">
@@ -531,10 +639,11 @@ export default function CommissionedPage() {
                           key={`${groupIndex}-${imgIndex}`}
                           className="work-stack-item"
                           style={{
-                            backgroundImage: `url(${img.src})`,
                             animationDelay: `${(groupIndex * 3 + imgIndex) * 40}ms`,
                           }}
-                        />
+                        >
+                          <img className="work-stack-pair-img" src={img.src} alt="" />
+                        </div>
                       ))}
                     </div>
                   )}
@@ -576,17 +685,22 @@ export default function CommissionedPage() {
                           key={`clone-${groupIndex}-${imgIndex}`}
                           className="work-stack-item"
                           style={{
-                            backgroundImage: `url(${img.src})`,
                             animationDelay: `${(groupIndex * 3 + imgIndex) * 40}ms`,
                           }}
-                        />
+                        >
+                          <img className="work-stack-pair-img" src={img.src} alt="" />
+                        </div>
                       ))}
                     </div>
                   )}
                   {group.single && (
                     <div
                       className={
-                        (wideMap[group.single.src] ? "work-stack-full work-stack-full--bleed" : "work-stack-full work-stack-full--centered")
+                        wideMap[group.single.src]
+                          ? "work-stack-full work-stack-full--bleed"
+                          : group.rotate
+                            ? "work-stack-full work-stack-full--rotated"
+                            : "work-stack-full work-stack-full--centered"
                       }
                       style={{
                         animationDelay: `${(groupIndex * 3 + 2) * 40}ms`,
@@ -615,9 +729,10 @@ export default function CommissionedPage() {
             <div className="work-reel-track">
               {reelImages.map((img, idx) => (
                 <div key={idx} className="work-reel-item">
-                  <div
+                  <img
                     className="work-reel-img"
-                    style={{ backgroundImage: `url(${img.src})` }}
+                    src={img.src}
+                    alt=""
                   />
                 </div>
               ))}

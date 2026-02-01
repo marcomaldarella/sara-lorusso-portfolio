@@ -65,6 +65,7 @@ export default function Home() {
   const [isLoaded, setIsLoaded] = useState(false)
   const [marqueeIterations, setMarqueeIterations] = useState(3)
   const [wideMap, setWideMap] = useState<Record<string, boolean>>({})
+  const [stackShuffleKey, setStackShuffleKey] = useState<number>(0)
   const reelRef = useRef<HTMLDivElement>(null)
   const stackScrollRef = useRef<HTMLDivElement>(null)
   const sliderRef = useRef<HTMLDivElement>(null)
@@ -99,6 +100,12 @@ export default function Home() {
       window.removeEventListener('orientationchange', updateIterations)
     }
   }, [])
+  // Aggiorna chiave di shuffle quando si entra nella view stack
+  useEffect(() => {
+    if (viewMode === 'stack') {
+      setStackShuffleKey(Date.now())
+    }
+  }, [viewMode])
 
   // Preload immagini + animazione iniziale
   useEffect(() => {
@@ -119,88 +126,93 @@ export default function Home() {
     preloadImages()
   }, [])
 
+  // Precompute aspect ratio for all images before building stack groups
+  useEffect(() => {
+    if (viewMode !== 'stack') return
+    const toCheck = images.filter((img) => wideMap[img.src] === undefined)
+    if (toCheck.length === 0) return
+
+    const tasks = toCheck.map((img) =>
+      new Promise<void>((resolve) => {
+        const im = new Image()
+        im.onload = () => {
+          const isWide = im.naturalWidth > im.naturalHeight
+          setWideMap((prev) => ({ ...prev, [img.src]: isWide }))
+          resolve()
+        }
+        im.onerror = () => resolve()
+        im.src = img.src
+      })
+    )
+    Promise.all(tasks).catch(() => {})
+  }, [viewMode])
+
   const stackGroups = useMemo(() => {
-    // Separare immagini wide (orizzontali) da verticali
     const wideImages: typeof images = []
     const verticalImages: typeof images = []
-    
+
     images.forEach((img) => {
-      if (wideMap[img.src]) {
-        wideImages.push(img)
-      } else {
-        verticalImages.push(img)
-      }
+      if (wideMap[img.src]) wideImages.push(img)
+      else verticalImages.push(img)
     })
-    
-    // Creare ordine: wide single, pair verticali, vertical single, repeat
-    const ordered: typeof images = []
-    let wideIdx = 0
-    let vertIdx = 0
-    let patternIndex = 0
-    
-    while (wideIdx < wideImages.length || vertIdx < verticalImages.length) {
-      const pattern = patternIndex % 3
-      
-      if (pattern === 0) {
-        // Wide single
-        if (wideIdx < wideImages.length) {
-          ordered.push(wideImages[wideIdx++])
-        }
-      } else if (pattern === 1) {
-        // Pair di verticali
-        if (vertIdx < verticalImages.length) {
-          ordered.push(verticalImages[vertIdx++])
-          if (vertIdx < verticalImages.length) {
-            ordered.push(verticalImages[vertIdx++])
-          }
-        }
-      } else {
-        // Vertical single
-        if (vertIdx < verticalImages.length) {
-          ordered.push(verticalImages[vertIdx++])
-        }
-      }
-      
-      patternIndex++
-    }
-    
-    // Creare gruppi dal nuovo ordine
-    const groups: { pair: typeof images; single?: typeof images[0] }[] = []
-    for (let i = 0; i < ordered.length; i += 3) {
-      const single1 = ordered[i]
-      const img2 = ordered[i + 1]
-      const img3 = ordered[i + 2]
-      
-      const pair = [img2, img3].filter(Boolean)
-      
-      // Se il primo è wide, è una single wide
-      if (wideMap[single1?.src]) {
-        groups.push({ pair: [], single: single1 })
-        if (pair.length > 0) {
-          groups.push({ pair, single: undefined })
-        }
-      } else {
-        // Altrimenti raggruppa normalmente
-        if (pair.length > 0) {
-          groups.push({ pair: [single1, ...pair].slice(0, 2), single: ordered[i + 2] })
-        } else if (single1) {
-          groups.push({ pair: [], single: single1 })
-        }
+
+    const mulberry32 = (seed: number) => {
+      let t = seed >>> 0
+      return function () {
+        t += 0x6D2B79F5
+        let x = Math.imul(t ^ (t >>> 15), t | 1)
+        x ^= x + Math.imul(x ^ (x >>> 7), x | 61)
+        return ((x ^ (x >>> 14)) >>> 0) / 4294967296
       }
     }
-    
+    const rand = mulberry32(stackShuffleKey || Date.now())
+
+    const shuffledVerticals = verticalImages.slice()
+    for (let i = shuffledVerticals.length - 1; i > 0; i--) {
+      const j = Math.floor(rand() * (i + 1))
+      ;[shuffledVerticals[i], shuffledVerticals[j]] = [shuffledVerticals[j], shuffledVerticals[i]]
+    }
+
+    const groups: { pair: typeof images; single?: typeof images[0]; rotate?: boolean }[] = []
+    let viIdx = 0
+    let wiIdx = 0
+    let pairStreak = 0
+
+    while (viIdx < shuffledVerticals.length || wiIdx < wideImages.length) {
+      if (pairStreak < 2 && viIdx + 1 < shuffledVerticals.length) {
+        groups.push({ pair: [shuffledVerticals[viIdx], shuffledVerticals[viIdx + 1]], single: undefined })
+        viIdx += 2
+        pairStreak += 1
+        continue
+      }
+
+      const canWide = wiIdx < wideImages.length
+      const canVertSingle = viIdx < shuffledVerticals.length
+      let useWide = false
+      if (canWide && canVertSingle) useWide = rand() < 0.5
+      else useWide = canWide && !canVertSingle
+
+      if (useWide && canWide) {
+        groups.push({ pair: [], single: wideImages[wiIdx++], rotate: false })
+      } else if (canVertSingle) {
+        const single = shuffledVerticals[viIdx++]
+        const shouldRotate = rand() < 0.25
+        groups.push({ pair: [], single, rotate: shouldRotate })
+      } else {
+        break
+      }
+      pairStreak = 0
+    }
     return groups
-  }, [images, wideMap])
+  }, [images, wideMap, stackShuffleKey])
 
   useEffect(() => {
     if (viewMode === 'reel' && reelRef.current) {
       const reel = reelRef.current
       let autoRaf = 0
 
-      // Wheel: traduce scroll verticale in orizzontale
       const onWheel = (e: WheelEvent) => {
         e.preventDefault()
-        // Usa deltaY per scroll orizzontale (scroll su/giù = scroll dx/sx)
         reel.scrollLeft += e.deltaY + e.deltaX
       }
 
@@ -212,16 +224,15 @@ export default function Home() {
           reel.scrollLeft += half
         }
       }
-      
-      // Touch: swipe verticale = scroll orizzontale
+
       let touchStartY = 0
       let touchStartX = 0
-      
+
       const onTouchStart = (e: TouchEvent) => {
         touchStartY = e.touches[0].clientY
         touchStartX = e.touches[0].clientX
       }
-      
+
       const onTouchMove = (e: TouchEvent) => {
         e.preventDefault()
         const deltaY = touchStartY - e.touches[0].clientY
@@ -235,7 +246,7 @@ export default function Home() {
       reel.addEventListener('scroll', onScroll)
       reel.addEventListener('touchstart', onTouchStart, { passive: true })
       reel.addEventListener('touchmove', onTouchMove, { passive: false })
-      
+
       requestAnimationFrame(() => {
         reel.scrollLeft = reel.scrollWidth / 4
       })
@@ -257,7 +268,7 @@ export default function Home() {
     if (viewMode === 'stack' && stackScrollRef.current) {
       const scroller = stackScrollRef.current
       let autoRaf = 0
-      
+
       const onScroll = () => {
         const half = scroller.scrollHeight / 2
         if (scroller.scrollTop >= half) {
@@ -271,8 +282,7 @@ export default function Home() {
       requestAnimationFrame(() => {
         scroller.scrollTop = scroller.scrollHeight / 4
       })
-      
-      // Auto-scroll fluido (funziona anche su mobile)
+
       const tick = () => {
         scroller.scrollTop += 0.35
         autoRaf = requestAnimationFrame(tick)
@@ -469,7 +479,7 @@ export default function Home() {
 
   return (
     <>
-      <main className="w-full h-screen bg-white text-[#111]">
+      <main className={`w-full h-screen ${viewMode === 'reel' ? 'is-reel' : ''} bg-white text-[#111]`}>
         {/* View Switcher - Top Right */}
         <div className="fixed bottom-[1em] right-[1em] z-[100] flex items-center gap-4 text-xs nav-menu work-view-toggle">
           <span className="pointer-events-none work-photo-counter">{photoCounter}</span>
@@ -493,21 +503,21 @@ export default function Home() {
           >
             {viewMode === 'grid' ? (
               <svg className="work-view-toggle-icon" width="16" height="16" viewBox="0 0 16 16">
-                <rect x="1" y="1" width="6" height="6" stroke="#111" fill="none" strokeWidth="1" />
-                <rect x="9" y="1" width="6" height="6" stroke="#111" fill="none" strokeWidth="1" />
-                <rect x="1" y="9" width="6" height="6" stroke="#111" fill="none" strokeWidth="1" />
-                <rect x="9" y="9" width="6" height="6" stroke="#111" fill="none" strokeWidth="1" />
+                <rect x="1" y="1" width="6" height="6" stroke="currentColor" fill="none" strokeWidth="1" />
+                <rect x="9" y="1" width="6" height="6" stroke="currentColor" fill="none" strokeWidth="1" />
+                <rect x="1" y="9" width="6" height="6" stroke="currentColor" fill="none" strokeWidth="1" />
+                <rect x="9" y="9" width="6" height="6" stroke="currentColor" fill="none" strokeWidth="1" />
               </svg>
             ) : viewMode === 'stack' ? (
               <svg className="work-view-toggle-icon" width="16" height="16" viewBox="0 0 16 16">
-                <rect x="1" y="1" width="6" height="6" stroke="#111" fill="none" strokeWidth="1" />
-                <rect x="9" y="1" width="6" height="6" stroke="#111" fill="none" strokeWidth="1" />
-                <rect x="1" y="9" width="14" height="6" stroke="#111" fill="none" strokeWidth="1" />
+                <rect x="1" y="1" width="6" height="6" stroke="currentColor" fill="none" strokeWidth="1" />
+                <rect x="9" y="1" width="6" height="6" stroke="currentColor" fill="none" strokeWidth="1" />
+                <rect x="1" y="9" width="14" height="6" stroke="currentColor" fill="none" strokeWidth="1" />
               </svg>
             ) : (
               <svg className="work-view-toggle-icon" width="16" height="16" viewBox="0 0 16 16">
-                <rect x="1" y="3" width="14" height="4" stroke="#111" fill="none" strokeWidth="1" />
-                <rect x="1" y="9" width="14" height="4" stroke="#111" fill="none" strokeWidth="1" />
+                <rect x="1" y="3" width="14" height="4" stroke="currentColor" fill="none" strokeWidth="1" />
+                <rect x="1" y="9" width="14" height="4" stroke="currentColor" fill="none" strokeWidth="1" />
               </svg>
             )}
           </button>
@@ -584,10 +594,11 @@ export default function Home() {
                           key={`${groupIndex}-${imgIndex}`}
                           className="work-stack-item"
                           style={{
-                            backgroundImage: `url(${img.src})`,
                             animationDelay: `${(groupIndex * 3 + imgIndex) * 40}ms`,
                           }}
-                        />
+                        >
+                          <img className="work-stack-pair-img" src={img.src} alt="" />
+                        </div>
                       ))}
                     </div>
                   )}
@@ -596,7 +607,9 @@ export default function Home() {
                       className={
                         wideMap[group.single.src]
                           ? "work-stack-full work-stack-full--bleed"
-                          : "work-stack-full work-stack-full--centered"
+                          : group.rotate
+                            ? "work-stack-full work-stack-full--rotated"
+                            : "work-stack-full work-stack-full--centered"
                       }
                       style={{
                         animationDelay: `${(groupIndex * 3 + 2) * 40}ms`,
@@ -629,17 +642,22 @@ export default function Home() {
                           key={`clone-${groupIndex}-${imgIndex}`}
                           className="work-stack-item"
                           style={{
-                            backgroundImage: `url(${img.src})`,
                             animationDelay: `${(groupIndex * 3 + imgIndex) * 40}ms`,
                           }}
-                        />
+                        >
+                          <img className="work-stack-pair-img" src={img.src} alt="" />
+                        </div>
                       ))}
                     </div>
                   )}
                   {group.single && (
                     <div
                       className={
-                        (wideMap[group.single.src] ? "work-stack-full work-stack-full--bleed" : "work-stack-full work-stack-full--centered")
+                        wideMap[group.single.src]
+                          ? "work-stack-full work-stack-full--bleed"
+                          : group.rotate
+                            ? "work-stack-full work-stack-full--rotated"
+                            : "work-stack-full work-stack-full--centered"
                       }
                       style={{
                         animationDelay: `${(groupIndex * 3 + 2) * 40}ms`,
@@ -668,9 +686,10 @@ export default function Home() {
             <div className="work-reel-track">
               {reelImages.map((img, idx) => (
                 <div key={idx} className="work-reel-item">
-                  <div
+                  <img
                     className="work-reel-img"
-                    style={{ backgroundImage: `url(${img.src})` }}
+                    src={img.src}
+                    alt=""
                   />
                 </div>
               ))}

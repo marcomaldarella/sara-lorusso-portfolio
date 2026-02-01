@@ -1,3 +1,34 @@
+
+.is-reel,
+.is-reel * {
+  color: #fff !important;
+}
+
+.is-reel .nav-menu,
+.is-reel .work-view-toggle,
+.is-reel .work-photo-counter,
+.is-reel .work-view-toggle-icon {
+  mix-blend-mode: difference;
+}
+
+.is-reel .work-view-toggle-icon rect,
+.is-reel .work-view-toggle-icon path {
+  stroke: currentColor !important;
+}
+
+/* Global: difference blend for nav + switch across views */
+.nav-menu,
+.work-view-toggle,
+.work-photo-counter,
+.work-view-toggle-icon {
+  mix-blend-mode: difference;
+  color: #fff;
+}
+
+.work-view-toggle-icon rect,
+.work-view-toggle-icon path {
+  stroke: currentColor !important;
+}
 @import "tailwindcss";
 @import "tw-animate-css";
 
@@ -474,11 +505,15 @@ main {
   display: flex;
   gap: 0;
   height: 100%;
+  flex-wrap: nowrap;
+  width: max-content;
 }
 
 .work-reel-item {
   flex: 0 0 auto;
   height: 100%;
+  min-width: max-content;
+  overflow: visible;
 }
 
 .work-hero {
@@ -514,9 +549,12 @@ main {
 .work-reel-img {
   height: 100vh;
   width: auto;
-  aspect-ratio: 3 / 4;
-  background-size: cover;
-  background-position: center;
+  max-width: none;
+  display: block;
+  flex: 0 0 auto;
+  object-fit: contain;
+  user-select: none;
+  -webkit-user-drag: none;
 }
 
 .grid-item-img--large {
@@ -610,7 +648,7 @@ main {
   height: 100vh;
   height: 100dvh;
   overflow-y: scroll;
-  overflow-x: hidden;
+  overflow-x: visible;
   scrollbar-width: none;
   -ms-overflow-style: none;
   overscroll-behavior: contain;
@@ -765,13 +803,11 @@ main {
   display: flex;
   align-items: center;
   justify-content: center;
-  overflow: contain;
+  overflow: hidden;
   pointer-events: none;
   opacity: 0;
   transition: opacity 0.4s ease-out;
-  width: fit-content;
-  height: fit-content;
-  margin: auto;
+  padding-bottom: 1em;
 }
 
 /* Hero visibile quando la pagina è caricata */
@@ -789,6 +825,7 @@ main {
 
 /* Immagine centrale - crossfade diretto */
 .works-photo-img {
+  max-height: 100%;
   max-width: calc(100vw - 80px);
   width: auto;
   height: auto;
@@ -1004,7 +1041,7 @@ main {
   gap: 1em;
   padding: 1em;
   min-height: 100vh;
-  overflow: hidden;
+  overflow: visible;
 }
 
 .work-stack-section {
@@ -1017,14 +1054,31 @@ main {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 1em;
+  place-items: center;
 }
 
 .work-stack-item {
   width: 100%;
   aspect-ratio: 3 / 4;
-  background-size: cover;
+  background-size: contain;
   background-position: center;
+  background-repeat: no-repeat;
   animation: fade-in-up 0.8s ease both;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+/* Immagine interna per le coppie verticali: dimensioni naturali, nessun crop */
+.work-stack-item img,
+.work-stack-pair-img {
+  height: 100%;
+  width: auto;
+  max-width: 100%;
+  object-fit: contain;
+  display: block;
+  user-select: none;
+  -webkit-user-drag: none;
 }
 
 .work-stack-full {
@@ -1036,7 +1090,11 @@ main {
 }
 
 .work-stack-full--bleed {
-  height: auto;
+  height: 100vh;
+  width: 100vw;
+  display: flex;
+  justify-content: center;
+  align-items: center;
 }
 
 .work-stack-full--centered {
@@ -1053,11 +1111,12 @@ main {
 }
 
 .work-stack-full--bleed .work-stack-full-img {
-  width: 100%;
-  height: auto;
+  width: auto;
+  height: 100vh;
   object-fit: contain;
-  max-height: 96vh;
-  /* evita clip verticale */
+  max-width: 100vw;
+  max-height: none;
+  /* Altezza fissa 100vh, larghezza proporzionale senza taglio */
 }
 
 .work-stack-full--centered .work-stack-full-img {
@@ -1099,9 +1158,9 @@ main {
   row-gap: initial;
   align-items: initial;
   width: 100%;
-  max-width: none;
-  justify-content: initial;
-  margin-left: 0;
+  width: 100vw;
+  display: flex;
+  justify-content: center;
 }
 
 .editorial-services-block,
@@ -1138,6 +1197,26 @@ main {
   column-gap: 32px;
   row-gap: 24px;
   margin-top: 48px;
+}
+
+/* Rotated full-bleed single: avoid clipping when rotated */
+.work-stack-full--rotated {
+  height: 100vh;
+  width: 100vw;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  overflow: visible;
+}
+
+.work-stack-full--rotated .work-stack-full-img {
+  width: auto;
+  height: 100vh;
+  max-width: 100vw;
+  max-height: none;
+  transform: rotate(90deg);
+  transform-origin: center center;
+  object-fit: contain;
 }
 
 .editorial-services-block,
