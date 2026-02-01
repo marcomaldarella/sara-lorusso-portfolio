@@ -1,15 +1,7 @@
 "use client"
 
-import dynamic from "next/dynamic"
 import { useEffect, useRef, useState, useCallback } from "react"
 import { useRouter } from "next/navigation"
-import type { MediaItem, MotionState } from "@/components/infinite-canvas/types"
-import { getPhotosForCanvas } from "@/lib/photos"
-
-const InfiniteCanvas = dynamic(
-  () => import("@/components/infinite-canvas").then((mod) => mod.InfiniteCanvas),
-  { ssr: false }
-)
 
 // Sistema fluidodinamico coordinato con canvas motion
 const BASE_BLUR = 18 // Ridotto da 24 - più sofisticato
@@ -22,9 +14,8 @@ export default function LandingPage() {
   const router = useRouter()
   const containerRef = useRef<HTMLDivElement | null>(null)
   const titleRef = useRef<HTMLHeadingElement | null>(null)
-  const [media, setMedia] = useState<MediaItem[]>([])
-  const [isLoading, setIsLoading] = useState(true)
-  const [loadProgress, setLoadProgress] = useState(0)
+  const [isLoading, setIsLoading] = useState(false)
+  const [loadProgress, setLoadProgress] = useState(100)
   const [isExiting, setIsExiting] = useState(false)
 
   // Refs per gestione pointer (solo per click detection)
@@ -48,50 +39,12 @@ export default function LandingPage() {
 
     const loadPhotos = async () => {
       try {
-        const photos = await getPhotosForCanvas()
-
-        if (!mounted) return
-
-        let loaded = 0
-        const loadPromises = photos.map((photo) =>
-          new Promise<MediaItem>((resolve) => {
-            const img = new Image()
-            img.src = photo.url
-            img.onload = () => {
-              loaded++
-              if (mounted) setLoadProgress(Math.round((loaded / photos.length) * 100))
-              resolve({
-                url: photo.url,
-                width: photo.width || img.naturalWidth || 3,
-                height: photo.height || img.naturalHeight || 4,
-                _id: photo._id,
-                category: photo.category
-              })
-            }
-            img.onerror = () => {
-              loaded++
-              if (mounted) setLoadProgress(Math.round((loaded / photos.length) * 100))
-              resolve({
-                url: photo.url,
-                width: photo.width || 3,
-                height: photo.height || 4,
-                _id: photo._id,
-                category: photo.category
-              })
-            }
-          })
-        )
-
-        Promise.all(loadPromises).then((loadedMedia) => {
-          if (!mounted) return
-          setMedia(loadedMedia)
-          setTimeout(() => {
-            if (mounted) setIsLoading(false)
-          }, 400)
-        })
+        // Simuliamo il caricamento
+        if (mounted) {
+          setLoadProgress(100)
+        }
       } catch (error) {
         console.error('Failed to load photos:', error)
-        if (mounted) setIsLoading(false)
       }
     }
 
@@ -230,18 +183,8 @@ export default function LandingPage() {
       onPointerUp={handlePointerUp}
       onPointerLeave={handlePointerLeave}
     >
-      {/* Canvas con callback motion */}
+      {/* Canvas area */}
       <div className={`landing-media ${!isLoading ? 'is-visible' : ''}`}>
-        {media.length > 0 && (
-          <InfiniteCanvas
-            media={media}
-            backgroundColor="#ffffff"
-            fogColor="#ffffff"
-            cameraFar={1200}
-            cameraNear={0.1}
-            onMotion={handleCanvasMotion}
-          />
-        )}
       </div>
 
       {/* Blur overlay */}
