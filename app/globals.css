@@ -2623,6 +2623,7 @@ body::-webkit-scrollbar {
   box-shadow: none;
   overflow: hidden;
   /* maschera il movimento */
+  transform: translateY(-40px);
 }
 
 .trail-title {

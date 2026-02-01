@@ -368,7 +368,7 @@ export default function Home() {
 
       <div className="trail-bottom">
         <span className="trail-bottom-left">
-          A visual practice exploring vulnerability through personal and collective experience.
+          A visual practice exploring vulnerability<br />through personal and collective experience.
         </span>
         <span className="trail-bottom-right">2026</span>
       </div>
