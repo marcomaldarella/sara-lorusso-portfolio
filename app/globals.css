@@ -2647,7 +2647,7 @@ body::-webkit-scrollbar {
 
 @media (max-width: 640px) {
   .trail-title {
-    font-size: clamp(56px, 14vw, 128px);
+    font-size: clamp(36px, 11vw, 128px);
   }
 }
 
