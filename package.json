@@ -12,6 +12,8 @@
     "sanity:build": "sanity build",
     "sanity:deploy": "sanity deploy",
     "import:photos": "tsx scripts/import-photos.ts",
+    "import:works": "tsx scripts/import-photos.ts --work",
+    "import:commissioned": "tsx scripts/import-photos.ts --commissioned",
     "setup:cors": "tsx scripts/setup-cors.ts"
   },
   "dependencies": {

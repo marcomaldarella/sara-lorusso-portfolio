@@ -479,13 +479,15 @@ export default function Home() {
 
   return (
     <>
-      <main className={`w-full h-screen ${viewMode === 'reel' ? 'is-reel' : ''} bg-white text-[#111]`}>
+      <main className={`w-full h-screen ${viewMode === 'reel' ? 'is-reel' : viewMode === 'stack' ? 'is-stack' : 'is-grid'} bg-white text-[#111]`}>
         {/* View Switcher - Top Right */}
         <div className="fixed bottom-[1em] right-[1em] z-[100] flex items-center gap-4 text-xs nav-menu work-view-toggle">
           <span className="pointer-events-none work-photo-counter">{photoCounter}</span>
           <button
             type="button"
-            onClick={() => {
+            onClick={(e) => {
+              e.preventDefault()
+              e.stopPropagation()
               const nextMode: ViewMode =
                 viewMode === 'grid' ? 'stack' : viewMode === 'stack' ? 'reel' : 'grid'
               setTransitionPhase('out')
@@ -499,6 +501,8 @@ export default function Home() {
                 window.setTimeout(() => setTransitionPhase(null), 260)
               }, 220)
             }}
+            onPointerDown={(e) => { e.stopPropagation() }}
+            onTouchStart={(e) => { e.stopPropagation() }}
             className="p-2 bg-transparent border-0 hover:opacity-70 transition pointer-events-auto work-view-toggle-button"
           >
             {viewMode === 'grid' ? (

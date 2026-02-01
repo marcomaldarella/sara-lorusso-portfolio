@@ -156,14 +156,14 @@ export default function Home() {
   useEffect(() => {
     if (!isReady || photos.length === 0) return
 
-    const items = imageRefs.current
+    const items: TrailNode[] = imageRefs.current
       .map((el) => el)
       .filter((el): el is HTMLDivElement => Boolean(el))
       .map((el) => ({
         el,
         inner: el.querySelector(".trail-img-inner") as HTMLDivElement,
         rect: el.getBoundingClientRect(),
-      }))
+      })) as TrailNode[]
 
     nodesRef.current = items
 
@@ -352,7 +352,7 @@ export default function Home() {
         {photos.map((photo, index) => (
           <div
             key={photo._id || photo.url + index}
-            ref={(el) => (imageRefs.current[index] = el)}
+            ref={(el) => { imageRefs.current[index] = el }}
             className="trail-img"
           >
             <img className="trail-img-inner" src={photo.url} alt="" />
@@ -368,8 +368,7 @@ export default function Home() {
 
       <div className="trail-bottom">
         <span className="trail-bottom-left">
-          Intimate photography exploring<br />
-          social, political, and personal narratives.
+          A visual practice exploring vulnerability through personal and collective experience.
         </span>
         <span className="trail-bottom-right">2026</span>
       </div>
