@@ -789,7 +789,6 @@ main {
 
 /* Immagine centrale - crossfade diretto */
 .works-photo-img {
-  max-height: 100%;
   max-width: calc(100vw - 80px);
   width: auto;
   height: auto;
