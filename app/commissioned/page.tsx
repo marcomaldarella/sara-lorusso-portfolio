@@ -1,6 +1,6 @@
 'use client'
 
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { Suspense, useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { useSearchParams } from 'next/navigation'
 
 // Immagini commissioned (26 foto)
@@ -77,7 +77,7 @@ const getMarqueeIterations = (totalImages: number) => {
   return Math.max(4, Math.ceil(requiredCoverage / Math.max(1, totalImages)))
 }
 
-export default function CommissionedPage() {
+function CommissionedContent() {
   const searchParams = useSearchParams()
   const selectedCategory = searchParams.get('category') || null
   const currentImages = useMemo(() => {
@@ -744,5 +744,13 @@ export default function CommissionedPage() {
 
       {/* Global styles moved to app/globals.css */}
     </>
+  )
+}
+
+export default function CommissionedPage() {
+  return (
+    <Suspense fallback={null}>
+      <CommissionedContent />
+    </Suspense>
   )
 }
