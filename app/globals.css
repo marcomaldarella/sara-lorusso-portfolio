@@ -2641,6 +2641,12 @@ body::-webkit-scrollbar {
   perspective: 1200px;
 }
 
+@media (max-width: 640px) {
+  .trail-title {
+    font-size: clamp(56px, 14vw, 128px);
+  }
+}
+
 .trail-title-line {
   display: block;
   overflow: hidden;
