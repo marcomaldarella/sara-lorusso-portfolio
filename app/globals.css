@@ -380,7 +380,7 @@ main {
   padding-left: 1em !important;
   padding-right: 0;
   width: 100%;
-  height: 100vh;
+  min-height: 100vh;
   display: flex;
   flex-direction: column;
 }
@@ -705,7 +705,7 @@ main {
 .works-grid-photo {
   position: absolute;
   top: 60px;  /* Spazio per nav */
-  bottom: 80px; /* Spazio per marquee */
+  bottom: 96px; /* Spazio per marquee + padding */
   left: 0;
   right: 0;
   display: flex;
@@ -761,9 +761,9 @@ main {
   user-select: none;
   pointer-events: none; /* Non cliccabile */
   z-index: 50;
-  opacity: 0;
-  transform: translateY(20px);
-  transition: opacity 0.5s ease-out 0.2s, transform 0.5s ease-out 0.2s;
+  opacity: 1;
+  transform: translateY(0);
+  transition: none;
 }
 
 .works-grid-view.is-loaded .works-grid-marquee {
@@ -791,7 +791,7 @@ main {
   gap: 10px; /* Gap uniforme tra tutte le thumbnail */
   align-items: center;
   height: 100%;
-  padding: 10px 0;
+  padding: 10px 12px; /* spazio di testa/coda senza rompere loop */
   will-change: transform;
   position: absolute;
   left: 0;
@@ -801,7 +801,7 @@ main {
 .works-marquee-span::after {
   content: '';
   flex-shrink: 0;
-  width: 10px;
+  width: 0; /* padding già gestito sul contenitore */
 }
 
 .works-marquee-span-a {
@@ -822,15 +822,15 @@ main {
   flex-shrink: 0;
   height: 50px;
   width: auto;
-  opacity: 0;
-  transition: opacity 0.4s ease-out;
-  filter: blur(0.5px); /* Leggero blur costante */
+  opacity: 1;
+  transition: none;
+  filter: none;
   pointer-events: none;
 }
 
 /* Stato visibile (applicato subito via JS) */
 .works-marquee-thumb.is-visible {
-  opacity: 0.4;
+  opacity: 1;
 }
 
 .works-marquee-thumb img {
@@ -974,6 +974,7 @@ main {
   width: 100vw;
   margin-left: calc(-50vw + 50%);
   animation: fade-in-up 0.9s ease both;
+  overflow: visible; /* evita tagli su immagini ruotate */
 }
 
 .work-stack-full--bleed {
@@ -997,12 +998,21 @@ main {
   width: 100%;
   height: auto;
   object-fit: contain;
+  max-height: 96vh; /* evita clip verticale */
 }
 
 .work-stack-full--centered .work-stack-full-img {
   width: auto;
   height: 100vh;
   max-width: 100%;
+}
+
+.work-stack-rotate {
+  transform: rotate(90deg);
+  transform-origin: center center;
+  max-width: 90vh;
+  max-height: 90vw;
+  object-fit: contain;
 }
 
 .editorial-hero {
@@ -1012,7 +1022,7 @@ main {
   line-height: 0.95;
   text-indent: 1.5em;
   letter-spacing: -0.045em;
-  padding: 0;
+  padding: 1em 0 0 0;
   margin: 0 0 20px 0;
   max-width: none;
   width: 90vw;
@@ -1030,33 +1040,37 @@ main {
 }
 
 .editorial-columns {
-  display: grid;
-  grid-template-columns: var(--about-col-width) minmax(0, 1fr);
-  column-gap: var(--about-gap);
-  row-gap: 10px;
-  align-items: start;
-  width: var(--about-grid-width);
-  justify-content: start;
-  margin-left: calc(-1 * 1em);
+  display: initial;
+  grid-template-columns: initial;
+  column-gap: initial;
+  row-gap: initial;
+  align-items: initial;
+  width: 100%;
+  max-width: none;
+  justify-content: initial;
+  margin-left: 0;
 }
 
-.editorial-services-block {
-  grid-column: 1;
-}
-
+.editorial-services-block,
 .editorial-bio-block {
-  grid-column: 2;
+  grid-column: initial;
 }
 
 .editorial-columns-secondary {
   display: grid;
-  grid-template-columns: repeat(3, var(--about-col-width));
+  grid-template-columns: 1fr 1fr;
   column-gap: var(--about-gap);
   row-gap: 10px;
   margin-top: 16px;
-  width: var(--about-grid-width);
+  width: 100%;
   justify-content: start;
-  margin-left: calc(-1 * 1em);
+  margin-left: 0;
+}
+
+.editorial-left-col {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
 }
 
 /* Sezione inferiore a 3 colonne */
@@ -1181,6 +1195,33 @@ main {
   margin-right: 0;
 }
 
+@media (max-width: 768px) {
+  .editorial-columns {
+    display: flex !important;
+    flex-direction: column;
+    gap: 2rem;
+    max-width: none;
+    padding-inline: 0;
+  }
+  .editorial-bio-block {
+    order: 1;
+    width: 100%;
+    max-width: none;
+    font-size: 1.2em;
+    line-height: 1.4;
+    padding-right: 0;
+  }
+  .editorial-left-stack {
+    order: 2;
+    max-width: none;
+    width: 100%;
+  }
+  .editorial-hero {
+    max-width: none !important;
+    padding-right: 0 !important;
+  }
+}
+
 .editorial-contact {
   margin-top: 20px;
   width: var(--about-grid-width);
@@ -1193,6 +1234,26 @@ main {
 
 .editorial-contact-lines a {
   display: block;
+}
+
+.editorial-contact-lines a[download] {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.25rem;
+  white-space: nowrap;
+}
+
+/* Override bio sizing (desktop & mobile) */
+.editorial-bio-block p {
+  font-size: 2em;
+  line-height: 1.28em;
+}
+
+@media (max-width: 768px) {
+  .editorial-bio-block p {
+    font-size: 1.2em;
+    line-height: 1.4em;
+  }
 }
 
 .editorial-contact-lines a:first-child {
@@ -1241,9 +1302,8 @@ main {
   .editorial-hero { 
     font-size: clamp(20px, 6vw, 36px); 
     line-height: 1.02;
-    padding: 0;
-    padding-top: 20px;
     text-indent: calc(1.5em + 2ch);
+    width: 98vw;
   }
   .editorial-columns {
     display: flex;
@@ -2204,4 +2264,231 @@ body::-webkit-scrollbar {
   /* Performance */
   transition: none;
   will-change: mask-image, -webkit-mask-image, background;
+}
+
+/* ==========================================================================
+   TRAIL HERO (home) — demo 4 rework, no blur, work-only
+   ========================================================================== */
+
+:root {
+  --trail-size: 210px;
+  --trail-radius: 2px;
+}
+
+@media (max-width: 900px) {
+  :root {
+    --trail-size: 170px;
+  }
+}
+
+@media (max-width: 640px) {
+  :root {
+    --trail-size: 140px;
+  }
+}
+
+.trail-hero {
+  position: relative;
+  width: 100%;
+  height: 100vh;
+  overflow: hidden;
+  background: #fff;
+  color: #0a0a0a;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+}
+
+.trail-images {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  z-index: 1;
+}
+
+.trail-img {
+  position: absolute;
+  top: 0;
+  left: 0;
+  border-radius: var(--trail-radius);
+  opacity: 0;
+  will-change: transform, opacity, filter;
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.14);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  overflow: visible;
+}
+
+.trail-img-inner {
+  display: block;
+  width: auto;
+  height: auto;
+  max-width: var(--trail-size);
+  max-height: var(--trail-size);
+  object-fit: contain;
+  border-radius: var(--trail-radius);
+}
+
+.trail-center {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 3;
+  pointer-events: none;
+}
+
+.trail-title-wrap {
+  text-align: center;
+  display: grid;
+  gap: 10px;
+  pointer-events: auto;
+  padding: 0;
+  background: transparent;
+  border: none;
+  border-radius: 0;
+  box-shadow: none;
+  overflow: hidden; /* maschera il movimento */
+}
+
+.trail-title {
+  font-size: clamp(48px, 12vw, 128px);
+  font-weight: 400;
+  line-height: 0.74; /* più compatto */
+  letter-spacing: var(--trail-kerning, -0.12em); /* kerning stretto e animabile */
+  color: #000;
+  margin: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  text-align: left;
+  perspective: 1200px;
+}
+
+.trail-title-line {
+  display: block;
+  overflow: hidden; /* maschera l'animazione verticale */
+}
+
+.trail-title .char {
+  display: inline-block;
+  opacity: 1; /* visibile subito */
+  transform: translateY(120%) rotateX(16deg);
+  animation: trail-char 0.9s cubic-bezier(0.19, 1, 0.22, 1) forwards;
+  animation-delay: calc(var(--char-delay, 0ms) + 120ms); /* ritardo sequenziale extra */
+  will-change: transform, opacity;
+}
+
+.trail-title.is-ready .char {
+  /* the class is added after DOM build to trigger the animation */
+}
+
+.trail-title.is-ready {
+  animation: trail-breathe 5.2s ease-in-out infinite,
+             trail-kerning 4.6s ease-in-out infinite;
+  transform-origin: left center;
+}
+
+@keyframes trail-breathe {
+  0%   { transform: scale(0.988); }
+  50%  { transform: scale(1); }
+  100% { transform: scale(0.988); } /* solo zoom-out leggerissimo, loop seamless */
+}
+
+@keyframes trail-kerning {
+  0%   { letter-spacing: -0.125em; }
+  50%  { letter-spacing: -0.12em; }
+  100% { letter-spacing: -0.125em; } /* solo stringere, loop senza scatti */
+}
+
+@keyframes trail-char {
+  to {
+    opacity: 1;
+    transform: translateY(0) rotateX(0deg);
+  }
+}
+
+/* Sequenza home: titolo -> menu -> footer */
+.home-sequence .nav-menu {
+  opacity: 0;
+  transform: translateY(-6px);
+  animation: home-reveal 0.6s ease 1.05s forwards;
+}
+
+.home-sequence .trail-bottom {
+  opacity: 0;
+  transform: translateY(6px);
+  animation: home-reveal 0.6s ease 1.45s forwards;
+}
+
+@keyframes home-reveal {
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.trail-sub {
+  margin: 0;
+  font-size: 12px;
+  text-transform: uppercase;
+  letter-spacing: 0.12em;
+  color: rgba(0, 0, 0, 0.52);
+}
+
+.trail-cta {
+  font-size: 11px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: rgba(0, 0, 0, 0.65);
+}
+
+.trail-loader {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: transparent;
+  z-index: 1;
+  pointer-events: none;
+}
+
+.trail-bottom {
+  position: fixed;
+  left: 0;
+  right: 0;
+  bottom: 14px;
+  padding: 0 18px;
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  font-size: 11px;
+  letter-spacing: 0.02em;
+  text-transform: none;
+  color: #0a0a0a;
+  pointer-events: none;
+  z-index: 5;
+}
+
+.trail-bottom-left,
+.trail-bottom-right {
+  opacity: 0.8;
+  text-align: left;
+}
+
+.trail-bottom-left {
+  max-width: 320px;
+  line-height: 1.3;
+}
+
+@media (max-width: 640px) {
+  .trail-bottom {
+    font-size: 10px;
+    padding: 0 12px;
+    bottom: 10px;
+  }
 }

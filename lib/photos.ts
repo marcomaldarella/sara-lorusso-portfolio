@@ -1,5 +1,11 @@
 import { sanityFetch, queries, urlFor } from '@/lib/sanity'
-import type { MediaItem } from '@/components/infinite-canvas/types'
+export type MediaItem = {
+  url: string
+  width: number
+  height: number
+  _id?: string
+  category?: 'work' | 'commissioned'
+}
 
 export interface SanityPhoto {
   _id: string

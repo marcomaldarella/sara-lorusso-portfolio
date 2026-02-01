@@ -19,7 +19,8 @@ export default function RootLayout({
   children: React.ReactNode
 }>) {
   const pathname = usePathname()
-  const showNavigation = pathname !== "/landing" && pathname !== "/"
+  const showNavigation = pathname !== "/landing"
+  const hideNavName = pathname === "/"
 
   return (
     <html lang="it" suppressHydrationWarning>
@@ -30,7 +31,7 @@ export default function RootLayout({
         <title>Sara Lorusso - Portfolio</title>
       </head>
       <body className={`font-sans antialiased`}>
-        {showNavigation && <Navigation />}
+        {showNavigation && <Navigation hideName={hideNavName} />}
         {children}
         <CookieBanner />
         <Analytics />

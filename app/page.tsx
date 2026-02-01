@@ -1,316 +1,380 @@
 "use client"
 
-import dynamic from "next/dynamic"
-import { useEffect, useRef, useState, useCallback } from "react"
+import gsap from "gsap"
+import { useEffect, useRef, useState } from "react"
 import { useRouter } from "next/navigation"
-import type { MediaItem, MotionState } from "@/components/infinite-canvas/types"
 import { getPhotosForCanvas } from "@/lib/photos"
 
-const InfiniteCanvas = dynamic(
-  () => import("@/components/infinite-canvas").then((mod) => mod.InfiniteCanvas),
-  { ssr: false }
-)
+type TrailPhoto = {
+  url: string
+  width?: number
+  height?: number
+  _id?: string
+  category?: string
+}
 
-// Sistema fluidodinamico coordinato con canvas motion migliorato
-const BASE_BLUR = 16 // Ridotto per maggiore chiarezza
-const MIN_BLUR = 4 // Ancora più nitido durante il movimento
-const BASE_RADIUS = 0.35 // Aumentato per mostrare più contenuto
-const MAX_RADIUS = 0.60 // Espande di più durante la navigazione
-const FLUID_SMOOTHING = 0.12 // Più responsivo per seguire meglio il mouse
+type TrailNode = {
+  el: HTMLDivElement
+  inner: HTMLDivElement
+  rect: DOMRect
+  timeline?: gsap.core.Timeline
+}
+
+const MAX_IMAGES = 14
+const DISTANCE_THRESHOLD = 80
+
+const lerp = (a: number, b: number, n: number) => (1 - n) * a + n * b
+
+const shuffle = <T,>(list: T[]) => {
+  const arr = [...list]
+  for (let i = arr.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1))
+    ;[arr[i], arr[j]] = [arr[j], arr[i]]
+  }
+  return arr
+}
+
+const preload = async (urls: string[]) => {
+  await Promise.all(
+    urls.map(
+      (url) =>
+        new Promise<void>((resolve) => {
+          const img = new Image()
+          img.onload = () => resolve()
+          img.onerror = () => resolve()
+          img.src = url
+        })
+    )
+  )
+}
+
+const filterWorkOnly = (items: TrailPhoto[]) =>
+  items.filter((item) => {
+    if (!item?.url) return false
+    if (item.category === "commissioned") return false
+    if (item.category === "work") return true
+    // fallback for static assets
+    if (item.url.includes("/commissioned/")) return false
+    return true
+  })
 
 export default function Home() {
   const router = useRouter()
   const containerRef = useRef<HTMLDivElement | null>(null)
   const titleRef = useRef<HTMLHeadingElement | null>(null)
-  const [media, setMedia] = useState<MediaItem[]>([])
-  const [isLoading, setIsLoading] = useState(true)
-  const [loadProgress, setLoadProgress] = useState(0)
-  const [isExiting, setIsExiting] = useState(false)
-  const [isFirstVisit, setIsFirstVisit] = useState(true)
-  
-  // Refs per gestione pointer (solo per click detection)
-  const pointerStartRef = useRef({ x: 0, y: 0, time: 0 })
-  const isDraggingRef = useRef(false)
-  const hasDraggedRef = useRef(false)
-  
-  // Stato fluidodinamico coordinato con canvas
-  const fluidRef = useRef({
-    x: 0.5, y: 0.5,
-    targetX: 0.5, targetY: 0.5,
-    radius: BASE_RADIUS,
-    blur: BASE_BLUR,
-    canvasSpeed: 0,
-    canvasDragging: false
-  })
+  const imageRefs = useRef<(HTMLDivElement | null)[]>([])
 
-  // Caricamento immagini con progress (ora da Sanity)
+  const mousePos = useRef({ x: 0, y: 0 })
+  const cacheMousePos = useRef({ x: 0, y: 0 })
+  const lastMousePos = useRef({ x: 0, y: 0 })
+  const zIndexRef = useRef(1)
+  const imgPositionRef = useRef(0)
+  const activeCountRef = useRef(0)
+  const isIdleRef = useRef(true)
+  const rafRef = useRef<number | null>(null)
+  const nodesRef = useRef<TrailNode[]>([])
+
+  const [photos, setPhotos] = useState<TrailPhoto[]>([])
+  const [isReady, setIsReady] = useState(false)
+
   useEffect(() => {
-    // Controlla se è la prima visita
-    const hasVisited = sessionStorage.getItem('hasVisitedHome')
-    if (hasVisited) {
-      setIsFirstVisit(false)
-      setIsLoading(false)
-      setLoadProgress(100)
-    }
-    
-    let mounted = true
-    
-    const loadPhotos = async () => {
-      try {
-        const photos = await getPhotosForCanvas()
-        
-        if (!mounted) return
-        setMedia(photos)
-        
-        // Se non è la prima visita, carica immediatamente
-        if (!isFirstVisit) {
-          return
-        }
-        
-        // Altrimenti simula il caricamento con progress
-        let loaded = 0
-        const loadPromises = photos.map((photo) =>
-          new Promise<MediaItem>((resolve) => {
-            const img = new Image()
-            img.src = photo.url
-            img.onload = () => {
-              loaded++
-              if (mounted) setLoadProgress(Math.round((loaded / photos.length) * 100))
-              resolve({ 
-                url: photo.url, 
-                width: photo.width || img.naturalWidth || 3, 
-                height: photo.height || img.naturalHeight || 4,
-                _id: photo._id,
-                category: photo.category
-              })
-            }
-            img.onerror = () => {
-              loaded++
-              if (mounted) setLoadProgress(Math.round((loaded / photos.length) * 100))
-              resolve({ 
-                url: photo.url, 
-                width: photo.width || 3, 
-                height: photo.height || 4,
-                _id: photo._id,
-                category: photo.category
-              })
-            }
-          })
-        )
+    document.body.classList.add("home-sequence")
+    return () => document.body.classList.remove("home-sequence")
+  }, [])
 
-        Promise.all(loadPromises).then((loadedMedia) => {
-          if (!mounted) return
-          setMedia(loadedMedia)
-          setTimeout(() => {
-            if (mounted) {
-              setIsLoading(false)
-              sessionStorage.setItem('hasVisitedHome', 'true')
-            }
-          }, 400)
-        })
-      } catch (error) {
-        console.error('Failed to load photos:', error)
-        if (mounted) setIsLoading(false)
-      }
-    }
-
-    loadPhotos()
-
-    return () => { mounted = false }
-  }, [isFirstVisit])
-
-  // Aggiorna il blur del titolo in base al progresso
+  // Build title split animation (Sara first, then Lorusso)
   useEffect(() => {
     const titleEl = titleRef.current
     if (!titleEl) return
-
-    if (isFirstVisit && isLoading) {
-      // Calcola blur: da 25px (0%) a 0px (100%)
-      const blurAmount = Math.max(0, 25 * (100 - loadProgress) / 100)
-      titleEl.style.setProperty('--title-blur', `${blurAmount}px`)
-    } else {
-      // Nessun blur se non è la prima visita o caricamento completato
-      titleEl.style.setProperty('--title-blur', '0px')
-    }
-  }, [loadProgress, isLoading, isFirstVisit])
-
-  // Animazione titolo
-  useEffect(() => {
-    const titleEl = titleRef.current
-    if (!titleEl) return
-
-    // Imposta blur iniziale se è la prima visita
-    if (isFirstVisit && isLoading) {
-      titleEl.style.setProperty('--title-blur', '25px')
-    }
 
     const lines = ["Sara", "Lorusso"]
     titleEl.innerHTML = ""
-    
-    // Nessun delay se non è la prima visita
-    const baseDelayMs = (!isFirstVisit || !isLoading) ? 0 : 200
-    const staggerMs = 15
-    const durationMs = 500
-    
-    let index = 0
-    lines.forEach((line) => {
+
+    let delay = 0
+    const charGap = 42
+    const linePause = 220
+
+    lines.forEach((line, lineIndex) => {
       const lineSpan = document.createElement("span")
-      lineSpan.className = "landing-title-line"
-      
-      line.split("").forEach((char) => {
+      lineSpan.className = "trail-title-line"
+
+      line.split("").forEach((char, charIndex) => {
         const charSpan = document.createElement("span")
         charSpan.className = "char"
-        charSpan.style.setProperty("--char-delay", `${baseDelayMs + index * staggerMs}ms`)
-        charSpan.style.setProperty("--char-duration", `${durationMs}ms`)
         charSpan.textContent = char
+        const totalDelay = delay + charIndex * charGap
+        charSpan.style.setProperty("--char-delay", `${totalDelay}ms`)
         lineSpan.appendChild(charSpan)
-        index++
       })
-      
+
+      delay += line.length * charGap + (lineIndex === 0 ? linePause : 0)
       titleEl.appendChild(lineSpan)
     })
 
-    titleEl.setAttribute("aria-label", "Sara Lorusso")
-    if (!isLoading || !isFirstVisit) {
-      titleEl.classList.add("letters-ready")
-    }
-  }, [isLoading, isFirstVisit])
-
-  // Callback per ricevere il motion state dal canvas
-  const handleCanvasMotion = useCallback((motion: MotionState) => {
-    const fluid = fluidRef.current
-    
-    // Aggiorna target basato su mouse position del canvas
-    fluid.targetX = (motion.mouseX + 1) / 2  // Converti da -1..1 a 0..1
-    fluid.targetY = 1 - (motion.mouseY + 1) / 2  // Inverti Y e converti
-    fluid.canvasSpeed = motion.speed
-    fluid.canvasDragging = motion.isDragging
+    requestAnimationFrame(() => {
+      titleEl.classList.add("is-ready")
+    })
   }, [])
 
-  // Loop fluidodinamico coordinato con canvas
+  // Fetch and prep work-only photos
   useEffect(() => {
-    const container = containerRef.current
-    if (!container) return
+    let mounted = true
 
-    let rafId = 0
+    const load = async () => {
+      try {
+        const all = await getPhotosForCanvas()
+        const workOnly = filterWorkOnly(all)
+        const selected = shuffle(workOnly).slice(0, MAX_IMAGES)
 
-    const tick = () => {
-      const fluid = fluidRef.current
+        if (!mounted) return
+        setPhotos(selected)
 
-      // Smooth interpolation verso target (coordinato con canvas migliorato)
-      fluid.x += (fluid.targetX - fluid.x) * FLUID_SMOOTHING
-      fluid.y += (fluid.targetY - fluid.y) * FLUID_SMOOTHING
-      
-      // Raggio dinamico basato su velocità canvas con transizione più fluida
-      const speedFactor = Math.min(fluid.canvasSpeed * 1.2, 1) // Aumentato il moltiplicatore
-      const targetRadius = BASE_RADIUS + (MAX_RADIUS - BASE_RADIUS) * speedFactor
-      fluid.radius += (targetRadius - fluid.radius) * 0.08 // Leggermente più veloce
-      
-      // Blur dinamico migliorato: più movimento = meno blur (rivela di più)
-      const targetBlur = fluid.canvasDragging 
-        ? MIN_BLUR + (BASE_BLUR - MIN_BLUR) * 0.2  // Ancora meno blur durante la navigazione
-        : BASE_BLUR - (BASE_BLUR - MIN_BLUR) * speedFactor * 0.8 // Maggiore riduzione del blur
-      fluid.blur += (targetBlur - fluid.blur) * 0.07 // Transizione più veloce
-
-      // Applica stili CSS vignette
-      container.style.setProperty('--vignette-x', `${(fluid.x * 100).toFixed(2)}%`)
-      container.style.setProperty('--vignette-y', `${(fluid.y * 100).toFixed(2)}%`)
-      container.style.setProperty('--vignette-radius', `${(fluid.radius * 100).toFixed(2)}%`)
-      container.style.setProperty('--landing-blur', `${fluid.blur.toFixed(2)}px`)
-      
-      rafId = requestAnimationFrame(tick)
-    }
-
-    rafId = requestAnimationFrame(tick)
-    return () => cancelAnimationFrame(rafId)
-  }, [isLoading])
-
-  // Handler pointer (solo per click detection, il canvas gestisce il drag)
-  const handlePointerDown = useCallback((e: React.PointerEvent) => {
-    isDraggingRef.current = true
-    hasDraggedRef.current = false
-    pointerStartRef.current = { x: e.clientX, y: e.clientY, time: performance.now() }
-  }, [])
-
-  const handlePointerMove = useCallback((e: React.PointerEvent) => {
-    if (isDraggingRef.current) {
-      const dx = e.clientX - pointerStartRef.current.x
-      const dy = e.clientY - pointerStartRef.current.y
-      if (Math.hypot(dx, dy) > 8) {
-        hasDraggedRef.current = true
+        await preload(selected.map((item) => item.url))
+        if (!mounted) return
+        setIsReady(true)
+      } catch (error) {
+        console.error("Failed to load photos", error)
+        if (mounted) setIsReady(true)
       }
     }
-  }, [])
 
-  const handlePointerUp = useCallback(() => {
-    const wasDragging = isDraggingRef.current
-    const hasDragged = hasDraggedRef.current
-    
-    isDraggingRef.current = false
-    
-    // Naviga solo se è stato un click senza drag
-    if (wasDragging && !hasDragged) {
-      setIsExiting(true)
-      setTimeout(() => {
-        router.push("/work")
-      }, 600)
+    load()
+    return () => {
+      mounted = false
     }
-  }, [router])
-
-  const handlePointerLeave = useCallback(() => {
-    isDraggingRef.current = false
   }, [])
+
+  // Mouse/touch position handlers
+  useEffect(() => {
+    if (typeof window === "undefined") return
+    mousePos.current = { x: window.innerWidth / 2, y: window.innerHeight / 2 }
+    cacheMousePos.current = { ...mousePos.current }
+    lastMousePos.current = { ...mousePos.current }
+  }, [])
+
+  // Trail animation setup
+  useEffect(() => {
+    if (!isReady || photos.length === 0) return
+
+    const items = imageRefs.current
+      .map((el) => el)
+      .filter((el): el is HTMLDivElement => Boolean(el))
+      .map((el) => ({
+        el,
+        inner: el.querySelector(".trail-img-inner") as HTMLDivElement,
+        rect: el.getBoundingClientRect(),
+      }))
+
+    nodesRef.current = items
+
+    gsap.set(items.map((i) => i.el), { opacity: 0, x: 0, y: 0, scale: 1 })
+
+    const updateRects = () => {
+      items.forEach((item) => {
+        item.rect = item.el.getBoundingClientRect()
+        gsap.set(item.el, { opacity: 0, x: 0, y: 0, scale: 1 })
+      })
+      zIndexRef.current = 1
+    }
+
+    const handlePointerMove = (ev: PointerEvent) => {
+      mousePos.current = { x: ev.clientX, y: ev.clientY }
+    }
+
+    const handleTouchMove = (ev: TouchEvent) => {
+      if (ev.touches.length === 0) return
+      const t = ev.touches[0]
+      mousePos.current = { x: t.clientX, y: t.clientY }
+    }
+
+    const showNextImage = () => {
+      const { x: mx, y: my } = mousePos.current
+      const { x: cx, y: cy } = cacheMousePos.current
+
+      zIndexRef.current += 1
+      imgPositionRef.current =
+        imgPositionRef.current < items.length - 1 ? imgPositionRef.current + 1 : 0
+
+      const img = items[imgPositionRef.current]
+      gsap.killTweensOf(img.el)
+
+      let dx = mx - cx
+      let dy = my - cy
+      const distance = Math.hypot(dx, dy)
+
+      if (distance !== 0) {
+        dx /= distance
+        dy /= distance
+      }
+
+      dx *= distance / 100
+      dy *= distance / 100
+
+      img.timeline = gsap
+        .timeline({
+          onStart: () => {
+            activeCountRef.current += 1
+            isIdleRef.current = false
+          },
+          onComplete: () => {
+            activeCountRef.current -= 1
+            if (activeCountRef.current === 0) {
+              isIdleRef.current = true
+            }
+          },
+        })
+        .fromTo(
+          img.el,
+          {
+            opacity: 1,
+            scale: 0,
+            zIndex: zIndexRef.current,
+            x: cx - img.rect.width / 2,
+            y: cy - img.rect.height / 2,
+          },
+          {
+            duration: 0.4,
+            ease: "power1",
+            scale: 1,
+            x: mx - img.rect.width / 2,
+            y: my - img.rect.height / 2,
+          },
+          0
+        )
+        .fromTo(
+          img.inner,
+          {
+            scale: 1.9,
+            filter: "brightness(100%) contrast(100%)",
+          },
+          {
+            duration: 0.4,
+            ease: "power1",
+            scale: 1,
+            filter: "brightness(100%) contrast(100%)",
+          },
+          0
+        )
+        .to(
+          img.el,
+          {
+            duration: 0.4,
+            ease: "power3",
+            opacity: 0,
+          },
+          0.42
+        )
+        .to(
+          img.el,
+          {
+            duration: 1.4,
+            ease: "power4",
+            x: `+=${dx * 110}`,
+            y: `+=${dy * 110}`,
+          },
+          0.06
+        )
+    }
+
+    const render = () => {
+      const { x, y } = mousePos.current
+      const last = lastMousePos.current
+      const distance = Math.hypot(x - last.x, y - last.y)
+
+      if (distance > DISTANCE_THRESHOLD) {
+        showNextImage()
+        lastMousePos.current = { x, y }
+      }
+
+      cacheMousePos.current.x = lerp(cacheMousePos.current.x, x, 0.1)
+      cacheMousePos.current.y = lerp(cacheMousePos.current.y, y, 0.1)
+
+      if (isIdleRef.current && zIndexRef.current !== 1) {
+        zIndexRef.current = 1
+      }
+
+      rafRef.current = requestAnimationFrame(render)
+    }
+
+    const startLoop = () => {
+      if (rafRef.current) cancelAnimationFrame(rafRef.current)
+      rafRef.current = requestAnimationFrame(render)
+    }
+
+    window.addEventListener("pointermove", handlePointerMove, { passive: true })
+    window.addEventListener("touchmove", handleTouchMove, { passive: true })
+    window.addEventListener("resize", updateRects)
+
+    // Kick things off after first movement to avoid jank
+    const initMove = () => {
+      cacheMousePos.current = { ...mousePos.current }
+      lastMousePos.current = { ...mousePos.current }
+      startLoop()
+      window.removeEventListener("pointermove", initMove)
+      window.removeEventListener("touchmove", initMove as any)
+    }
+
+    window.addEventListener("pointermove", initMove)
+    window.addEventListener("touchmove", initMove as any, { passive: true })
+
+    // If user doesn't move, still start after slight delay so click works
+    const idleTimeout = setTimeout(() => {
+      startLoop()
+    }, 800)
+
+    return () => {
+      clearTimeout(idleTimeout)
+      if (rafRef.current) cancelAnimationFrame(rafRef.current)
+      window.removeEventListener("pointermove", handlePointerMove)
+      window.removeEventListener("touchmove", handleTouchMove)
+      window.removeEventListener("resize", updateRects)
+      window.removeEventListener("pointermove", initMove)
+      window.removeEventListener("touchmove", initMove as any)
+    }
+  }, [isReady, photos.length])
+
+  const handleEnter = () => {
+    router.push("/work")
+  }
 
   return (
     <div
       ref={containerRef}
-      className={`landing-canvas ${isExiting ? 'is-exiting' : ''} ${isLoading ? 'is-loading' : 'is-loaded'}`}
-      onPointerDown={handlePointerDown}
-      onPointerMove={handlePointerMove}
-      onPointerUp={handlePointerUp}
-      onPointerLeave={handlePointerLeave}
+      className="trail-hero"
+      role="button"
+      tabIndex={0}
+      onClick={handleEnter}
+      onKeyDown={(e) => {
+        if (e.key === "Enter" || e.key === " ") handleEnter()
+      }}
     >
-      {/* Canvas con callback motion */}
-      <div className={`landing-media ${!isLoading ? 'is-visible' : ''}`}>
-        {media.length > 0 && (
-          <InfiniteCanvas
-            media={media}
-            backgroundColor="#ffffff"
-            fogColor="#ffffff"
-            cameraFar={1200}
-            cameraNear={0.1}
-            onMotion={handleCanvasMotion}
-          />
-        )}
+      <div className="trail-images">
+        {photos.map((photo, index) => (
+          <div
+            key={photo._id || photo.url + index}
+            ref={(el) => (imageRefs.current[index] = el)}
+            className="trail-img"
+          >
+            <img className="trail-img-inner" src={photo.url} alt="" />
+          </div>
+        ))}
       </div>
 
-      {/* Blur overlay */}
-      <div className="landing-blur" />
-      
-      {/* Exit overlay */}
-      <div className={`landing-exit-overlay ${isExiting ? 'is-active' : ''}`} />
-
-      {/* Title/Logo unificato - stesso elemento per loader e titolo */}
-      <div className="landing-title-wrap">
-        <h1 ref={titleRef} className={`landing-title ${isLoading && isFirstVisit ? 'is-loading' : ''}`} data-text="Sara Lorusso">
-          <span className="landing-title-line">Sara</span>
-          <span className="landing-title-line">Lorusso</span>
-        </h1>
-        {/* Progress bar durante loading - solo sotto il titolo */}
-        <div className={`landing-title-progress ${isLoading && isFirstVisit ? 'is-visible' : ''}`}>
-          <span className="landing-progress-percent-small">{loadProgress}%</span>
+      <div className="trail-center">
+        <div className="trail-title-wrap">
+          <h1 ref={titleRef} className="trail-title" aria-label="Sara Lorusso" />
         </div>
       </div>
 
-      {/* Footer */}
-      <div className="landing-footer">
-        <span>©2026</span>
-        <div className="landing-footer-right">
-          <a className="landing-footer-link" href="https://www.instagram.com/loruponyo/" target="_blank" rel="noopener noreferrer">Instagram</a>
-          <a className="landing-footer-link" href="mailto:lorussosara1995@gmail.com">Contact</a>
-          <span className="landing-footer-cta">Click anywhere to enter</span>
-        </div>
+      <div className="trail-bottom">
+        <span className="trail-bottom-left">
+          Intimate photography exploring<br />
+          social, political, and personal narratives.
+        </span>
+        <span className="trail-bottom-right">2026</span>
       </div>
+
+      {!isReady && <div className="trail-loader" aria-hidden="true" />}
     </div>
   )
 }

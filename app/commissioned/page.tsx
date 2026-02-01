@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useMemo, useRef, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 
 // Immagini commissioned (26 foto)
 
@@ -64,6 +64,8 @@ export default function CommissionedPage() {
   const [heroIndex, setHeroIndex] = useState(0)
   const [isLoaded, setIsLoaded] = useState(false)
   const [marqueeIterations, setMarqueeIterations] = useState(4)
+  const [wideMap, setWideMap] = useState<Record<string, boolean>>({})
+  const [rotateMap, setRotateMap] = useState<Record<string, boolean>>({})
   const reelRef = useRef<HTMLDivElement>(null)
   const stackScrollRef = useRef<HTMLDivElement>(null)
   const sliderRef = useRef<HTMLDivElement>(null)
@@ -130,51 +132,6 @@ export default function CommissionedPage() {
       }
     }
     return groups
-  }, [])
-
-  useEffect(() => {
-    // Grain animation con canvas - grain più piccolo
-    const canvas = document.getElementById('grainCanvas') as HTMLCanvasElement
-    let handleResize: (() => void) | null = null
-    if (canvas) {
-      const ctx = canvas.getContext('2d')
-      const scale = 2 // Scala per grain più piccolo
-      canvas.width = window.innerWidth / scale
-      canvas.height = window.innerHeight / scale
-      canvas.style.width = '100%'
-      canvas.style.height = '100%'
-      canvas.style.imageRendering = 'pixelated'
-
-      const grain = () => {
-        const imageData = ctx!.createImageData(canvas.width, canvas.height)
-        const data = imageData.data
-
-        for (let i = 0; i < data.length; i += 4) {
-          const color = Math.random() * 255
-          data[i] = color
-          data[i + 1] = color
-          data[i + 2] = color
-          data[i + 3] = 255
-        }
-
-        ctx!.putImageData(imageData, 0, 0)
-        requestAnimationFrame(grain)
-      }
-
-      grain()
-
-      handleResize = () => {
-        canvas.width = window.innerWidth / scale
-        canvas.height = window.innerHeight / scale
-      }
-      window.addEventListener('resize', handleResize)
-    }
-
-    return () => {
-      if (handleResize) {
-        window.removeEventListener('resize', handleResize)
-      }
-    }
   }, [])
 
   useEffect(() => {
@@ -297,15 +254,18 @@ export default function CommissionedPage() {
       const SPAN_WIDTH = measureSpanWidth()
       const viewportWidth = window.innerWidth
       
-      // Calcola THUMB_WIDTH reale dalla misurazione
-      const THUMB_WIDTH = SPAN_WIDTH / marqueeImages.length
+      // Calcola THUMB_WIDTH reale dalla misurazione (escludendo padding del container)
+      const trackStyles = getComputedStyle(trackA)
+      const paddingLeft = parseFloat(trackStyles.paddingLeft || '0')
+      const paddingX = paddingLeft + parseFloat(trackStyles.paddingRight || '0')
+      const THUMB_WIDTH = (SPAN_WIDTH - paddingX) / marqueeImages.length
       
       const SCROLL_MULTIPLIER = 0.5
       const MIN_VELOCITY = 0.1
       
       // Calcola offset iniziale per centrare la PRIMA immagine
       // La prima immagine deve essere al centro del viewport
-      const initialOffset = viewportWidth / 2 - THUMB_WIDTH / 2
+      const initialOffset = viewportWidth / 2 - (paddingLeft + THUMB_WIDTH / 2)
       
       // Stato scroll con inerzia - partendo da offset per centrare img 1
       let targetScroll = -initialOffset / SCROLL_MULTIPLIER
@@ -315,11 +275,17 @@ export default function CommissionedPage() {
       // Calcola quale immagine è al CENTRO del viewport
       const getCenterImageIndex = (loopedPosition: number) => {
         const viewportCenter = viewportWidth / 2
-        const centerOffset = viewportCenter - loopedPosition
-        const thumbIndex = Math.floor(centerOffset / THUMB_WIDTH)
+        const centerOffset = viewportCenter - (loopedPosition + paddingLeft)
+        // Usa rounding al thumb più vicino per evitare salti sul bordo
+        const thumbIndex = Math.round(centerOffset / THUMB_WIDTH)
         return ((thumbIndex % images.length) + images.length) % images.length
       }
-      
+
+      const syncNow = () => {
+        currentScroll = targetScroll
+        updateMarqueePosition()
+      }
+
       // CORE: Aggiorna posizione marquee con LOOP + TRANSLATE insieme
       const updateMarqueePosition = () => {
         const diff = targetScroll - currentScroll
@@ -332,23 +298,24 @@ export default function CommissionedPage() {
         }
         
         const rawPosition = -currentScroll * SCROLL_MULTIPLIER
-        let loopedPosition = rawPosition % SPAN_WIDTH
-        if (loopedPosition > 0) loopedPosition -= SPAN_WIDTH
+        const loopedPosition = ((rawPosition % SPAN_WIDTH) + SPAN_WIDTH) % SPAN_WIDTH // 0..SPAN_WIDTH
         
         trackA.style.transform = `translateX(${loopedPosition}px)`
         trackB.style.transform = `translateX(${loopedPosition - SPAN_WIDTH}px)`
         trackC.style.transform = `translateX(${loopedPosition + SPAN_WIDTH}px)`
         
         const centerIndex = getCenterImageIndex(loopedPosition)
-        if (centerIndex !== heroIndex) {
-          setHeroIndex(centerIndex)
-        }
+        setHeroIndex(centerIndex)
       }
       
       const tick = () => {
         updateMarqueePosition()
         rafId = requestAnimationFrame(tick)
       }
+
+      // Prima sincronizzazione per mostrare subito la foto 1
+      syncNow()
+      setHeroIndex(0)
       
       // Rendi subito visibili tutte le thumbnail
       const allThumbs = slider.querySelectorAll('.works-marquee-thumb')
@@ -369,7 +336,9 @@ export default function CommissionedPage() {
         if (target.closest('.work-view-toggle') || target.closest('.nav-menu')) {
           return
         }
+        setHeroIndex((prev) => (prev + 1) % images.length) // aggiorna subito l'hero
         targetScroll += THUMB_WIDTH / SCROLL_MULTIPLIER
+        syncNow()
       }
       
       // Touch handlers
@@ -432,14 +401,22 @@ export default function CommissionedPage() {
     setHeroIndex((prev) => (prev + 1) % images.length)
   }
 
+  const handleAspectRecord = useCallback((src: string, width: number, height: number) => {
+    const isWide = width > height
+    setWideMap((prev) => (prev[src] === isWide ? prev : { ...prev, [src]: isWide }))
+
+    if (!isWide) {
+      setRotateMap((prev) => {
+        if (prev[src] !== undefined) return prev
+        const shouldRotate = Math.random() < 0.08
+        return shouldRotate ? { ...prev, [src]: true } : prev
+      })
+    }
+  }, [])
+
   return (
     <>
       <main className="w-full h-screen bg-white text-[#111]">
-        {/* Grain texture overlay */}
-        <div className="fixed inset-0 pointer-events-none z-[9999] opacity-[0.04] mix-blend-overlay">
-          <canvas id="grainCanvas" className="w-full h-full"></canvas>
-        </div>
-
         {/* View Switcher - Top Right */}
         <div className="fixed bottom-[1em] right-[1em] z-[100] flex items-center gap-4 text-xs nav-menu work-view-toggle">
           <span className="pointer-events-none work-photo-counter">{photoCounter}</span>
@@ -563,12 +540,27 @@ export default function CommissionedPage() {
                   )}
                   {group.single && (
                     <div
-                      className={groupIndex % 2 === 0 ? "work-stack-full work-stack-full--bleed" : "work-stack-full work-stack-full--centered"}
+                      className={
+                        (wideMap[group.single.src] || rotateMap[group.single.src]
+                          ? "work-stack-full work-stack-full--bleed"
+                          : "work-stack-full work-stack-full--centered")
+                      }
                       style={{
                         animationDelay: `${(groupIndex * 3 + 2) * 40}ms`,
                       }}
                     >
-                      <img src={group.single.src} alt="" className="work-stack-full-img" />
+                      <img
+                        src={group.single.src}
+                        alt=""
+                        className={`work-stack-full-img ${rotateMap[group.single.src] ? "work-stack-rotate" : ""}`}
+                        onLoad={(e) =>
+                          handleAspectRecord(
+                            group.single!.src,
+                            e.currentTarget.naturalWidth,
+                            e.currentTarget.naturalHeight
+                          )
+                        }
+                      />
                     </div>
                   )}
                 </section>
@@ -593,12 +585,25 @@ export default function CommissionedPage() {
                   )}
                   {group.single && (
                     <div
-                      className={groupIndex % 2 === 0 ? "work-stack-full work-stack-full--bleed" : "work-stack-full work-stack-full--centered"}
+                      className={
+                        (wideMap[group.single.src] ? "work-stack-full work-stack-full--bleed" : "work-stack-full work-stack-full--centered")
+                      }
                       style={{
                         animationDelay: `${(groupIndex * 3 + 2) * 40}ms`,
                       }}
                     >
-                      <img src={group.single.src} alt="" className="work-stack-full-img" />
+                      <img
+                        src={group.single.src}
+                        alt=""
+                        className="work-stack-full-img"
+                        onLoad={(e) =>
+                          handleAspectRecord(
+                            group.single!.src,
+                            e.currentTarget.naturalWidth,
+                            e.currentTarget.naturalHeight
+                          )
+                        }
+                      />
                     </div>
                   )}
                 </section>
