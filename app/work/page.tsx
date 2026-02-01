@@ -61,6 +61,7 @@ const getMarqueeIterations = () => {
 export default function Home() {
   const [viewMode, setViewMode] = useState<ViewMode>('grid')
   const [transitionPhase, setTransitionPhase] = useState<'out' | 'in' | null>(null)
+  const [isTransitioning, setIsTransitioning] = useState(false)
   const [heroIndex, setHeroIndex] = useState(0)
   const [isLoaded, setIsLoaded] = useState(false)
   const [marqueeIterations, setMarqueeIterations] = useState(3)
@@ -107,10 +108,11 @@ export default function Home() {
     }
   }, [viewMode])
 
-  // Preload immagini + animazione iniziale
+  // Preload TUTTE le immagini all'avvio per evitare problemi su Safari
   useEffect(() => {
     const preloadImages = async () => {
-      const imagePromises = images.slice(0, 10).map((img) => {
+      // Precarica tutte le immagini in parallelo per evitare loading durante cambio view
+      const imagePromises = images.map((img) => {
         return new Promise((resolve) => {
           const image = new Image()
           image.onload = resolve
@@ -535,9 +537,15 @@ export default function Home() {
             onClick={(e) => {
               e.preventDefault()
               e.stopPropagation()
+              // Blocca clic multipli durante transizione
+              if (isTransitioning) return
+              setIsTransitioning(true)
+              
               const nextMode: ViewMode =
                 viewMode === 'grid' ? 'stack' : viewMode === 'stack' ? 'reel' : 'grid'
               setTransitionPhase('out')
+              
+              // Delay più lungo per dare tempo a Safari di fare cleanup
               window.setTimeout(() => {
                 setViewMode(nextMode)
                 // Reset heroIndex quando si torna alla grid view
@@ -545,11 +553,15 @@ export default function Home() {
                   setHeroIndex(0)
                 }
                 setTransitionPhase('in')
-                window.setTimeout(() => setTransitionPhase(null), 260)
-              }, 220)
+                window.setTimeout(() => {
+                  setTransitionPhase(null)
+                  setIsTransitioning(false)
+                }, 350)
+              }, 280)
             }}
             onPointerDown={(e) => { e.stopPropagation() }}
             onTouchStart={(e) => { e.stopPropagation() }}
+            disabled={isTransitioning}
             className="p-2 bg-transparent border-0 hover:opacity-70 transition pointer-events-auto work-view-toggle-button"
           >
             {viewMode === 'grid' ? (
