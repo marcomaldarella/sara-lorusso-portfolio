@@ -289,7 +289,11 @@ export default function Home() {
 
     if (viewMode === 'stack' && stackScrollRef.current) {
       const scroller = stackScrollRef.current
+      if (!scroller) return
+
       let autoRaf = 0
+      let isUserInteracting = false
+      let interactionTimeout: NodeJS.Timeout | null = null
 
       const onScroll = () => {
         const half = scroller.scrollHeight / 2
@@ -300,20 +304,41 @@ export default function Home() {
         }
       }
 
-      scroller.addEventListener('scroll', onScroll)
+      const onTouchStart = () => {
+        isUserInteracting = true
+        clearTimeout(interactionTimeout!)
+      }
+
+      const onTouchEnd = () => {
+        interactionTimeout = setTimeout(() => {
+          isUserInteracting = false
+        }, 1500)
+      }
+
+      scroller.addEventListener('scroll', onScroll, { passive: true })
+      scroller.addEventListener('touchstart', onTouchStart, { passive: true })
+      scroller.addEventListener('touchend', onTouchEnd, { passive: true })
+
       requestAnimationFrame(() => {
-        scroller.scrollTop = scroller.scrollHeight / 4
+        if (scroller.scrollHeight > 0) {
+          scroller.scrollTop = scroller.scrollHeight / 4
+        }
       })
 
       const tick = () => {
-        scroller.scrollTop += 0.35
+        if (!isUserInteracting && scroller) {
+          scroller.scrollTop += 0.35
+        }
         autoRaf = requestAnimationFrame(tick)
       }
       autoRaf = requestAnimationFrame(tick)
 
       return () => {
         scroller.removeEventListener('scroll', onScroll)
+        scroller.removeEventListener('touchstart', onTouchStart)
+        scroller.removeEventListener('touchend', onTouchEnd)
         if (autoRaf) cancelAnimationFrame(autoRaf)
+        if (interactionTimeout) clearTimeout(interactionTimeout)
       }
     }
     return undefined
