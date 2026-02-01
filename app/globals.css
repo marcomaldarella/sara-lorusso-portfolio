@@ -497,7 +497,9 @@ main {
   -ms-overflow-style: none;
   touch-action: pan-x;
   /* Permette solo scroll orizzontale */
-  overscroll-behavior: contain;
+  overscroll-behavior-x: contain;
+  -webkit-overflow-scrolling: touch;
+  /* Scroll fluido iOS */
 }
 
 .work-reel::-webkit-scrollbar {
@@ -510,6 +512,7 @@ main {
   height: 100%;
   flex-wrap: nowrap;
   width: max-content;
+  will-change: transform;
 }
 
 .work-reel-item {
@@ -517,6 +520,14 @@ main {
   height: 100%;
   min-width: max-content;
   overflow: visible;
+  scroll-snap-align: start;
+}
+
+/* Mobile: abilita snap per scroll fluido */
+@media (max-width: 768px) {
+  .work-reel {
+    scroll-snap-type: x proximity;
+  }
 }
 
 .work-hero {
