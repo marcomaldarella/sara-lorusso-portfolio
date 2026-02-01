@@ -293,54 +293,15 @@ export default function Home() {
       const scroller = stackScrollRef.current
       if (!scroller) return
 
-      let autoRaf = 0
-      let isUserInteracting = false
-      let interactionTimeout: NodeJS.Timeout | null = null
-
-      const onScroll = () => {
-        const half = scroller.scrollHeight / 2
-        if (scroller.scrollTop >= half) {
-          scroller.scrollTop -= half
-        } else if (scroller.scrollTop <= 1) {
-          scroller.scrollTop += half
-        }
-      }
-
-      const onTouchStart = () => {
-        isUserInteracting = true
-        clearTimeout(interactionTimeout!)
-      }
-
-      const onTouchEnd = () => {
-        interactionTimeout = setTimeout(() => {
-          isUserInteracting = false
-        }, 1500)
-      }
-
-      scroller.addEventListener('scroll', onScroll, { passive: true })
-      scroller.addEventListener('touchstart', onTouchStart, { passive: true })
-      scroller.addEventListener('touchend', onTouchEnd, { passive: true })
-
+      // Semplificato per Safari: nessun loop infinito, solo scroll naturale
       requestAnimationFrame(() => {
         if (scroller.scrollHeight > 0) {
-          scroller.scrollTop = scroller.scrollHeight / 4
+          scroller.scrollTop = 0
         }
       })
 
-      const tick = () => {
-        if (!isUserInteracting && scroller) {
-          scroller.scrollTop += 0.35
-        }
-        autoRaf = requestAnimationFrame(tick)
-      }
-      autoRaf = requestAnimationFrame(tick)
-
       return () => {
-        scroller.removeEventListener('scroll', onScroll)
-        scroller.removeEventListener('touchstart', onTouchStart)
-        scroller.removeEventListener('touchend', onTouchEnd)
-        if (autoRaf) cancelAnimationFrame(autoRaf)
-        if (interactionTimeout) clearTimeout(interactionTimeout)
+        // Nessun cleanup necessario
       }
     }
     return undefined
@@ -655,54 +616,6 @@ export default function Home() {
                       {group.pair.map((img, imgIndex) => (
                         <div
                           key={`${groupIndex}-${imgIndex}`}
-                          className="work-stack-item"
-                          style={{
-                            animationDelay: `${(groupIndex * 3 + imgIndex) * 40}ms`,
-                          }}
-                        >
-                          <img className="work-stack-pair-img" src={img.src} alt="" />
-                        </div>
-                      ))}
-                    </div>
-                  )}
-                  {group.single && (
-                    <div
-                      className={
-                        wideMap[group.single.src]
-                          ? "work-stack-full work-stack-full--bleed"
-                          : group.rotate
-                            ? "work-stack-full work-stack-full--rotated"
-                            : "work-stack-full work-stack-full--centered"
-                      }
-                      style={{
-                        animationDelay: `${(groupIndex * 3 + 2) * 40}ms`,
-                      }}
-                    >
-                      <img
-                        src={group.single.src}
-                        alt=""
-                        className="work-stack-full-img"
-                        onLoad={(e) =>
-                          handleAspectRecord(
-                            group.single!.src,
-                            e.currentTarget.naturalWidth,
-                            e.currentTarget.naturalHeight
-                          )
-                        }
-                      />
-                    </div>
-                  )}
-                </section>
-              ))}
-            </div>
-            <div className="work-stack work-stack--clone" aria-hidden="true">
-              {stackGroups.map((group, groupIndex) => (
-                <section key={`clone-${groupIndex}`} className="work-stack-section">
-                  {group.pair.length > 0 && (
-                    <div className="work-stack-pair">
-                      {group.pair.map((img, imgIndex) => (
-                        <div
-                          key={`clone-${groupIndex}-${imgIndex}`}
                           className="work-stack-item"
                           style={{
                             animationDelay: `${(groupIndex * 3 + imgIndex) * 40}ms`,
