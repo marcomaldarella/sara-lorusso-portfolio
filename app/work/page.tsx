@@ -210,10 +210,17 @@ export default function Home() {
     if (viewMode === 'reel' && reelRef.current) {
       const reel = reelRef.current
       let autoRaf = 0
+      let isUserInteracting = false
+      let interactionTimeout: NodeJS.Timeout | null = null
 
       const onWheel = (e: WheelEvent) => {
         e.preventDefault()
+        isUserInteracting = true
+        clearTimeout(interactionTimeout!)
         reel.scrollLeft += e.deltaY + e.deltaX
+        interactionTimeout = setTimeout(() => {
+          isUserInteracting = false
+        }, 1500)
       }
 
       const onScroll = () => {
@@ -229,6 +236,8 @@ export default function Home() {
       let touchStartX = 0
 
       const onTouchStart = (e: TouchEvent) => {
+        isUserInteracting = true
+        clearTimeout(interactionTimeout!)
         touchStartY = e.touches[0].clientY
         touchStartX = e.touches[0].clientX
       }
@@ -237,21 +246,32 @@ export default function Home() {
         e.preventDefault()
         const deltaY = touchStartY - e.touches[0].clientY
         const deltaX = touchStartX - e.touches[0].clientX
+        // Converte sia Y che X in scroll orizzontale
         reel.scrollLeft += deltaY + deltaX
         touchStartY = e.touches[0].clientY
         touchStartX = e.touches[0].clientX
+      }
+
+      const onTouchEnd = () => {
+        interactionTimeout = setTimeout(() => {
+          isUserInteracting = false
+        }, 1500)
       }
 
       reel.addEventListener('wheel', onWheel, { passive: false })
       reel.addEventListener('scroll', onScroll)
       reel.addEventListener('touchstart', onTouchStart, { passive: true })
       reel.addEventListener('touchmove', onTouchMove, { passive: false })
+      reel.addEventListener('touchend', onTouchEnd, { passive: true })
 
       requestAnimationFrame(() => {
         reel.scrollLeft = reel.scrollWidth / 4
       })
       const tick = () => {
-        reel.scrollLeft += 0.35
+        // Auto-scroll leggero anche su mobile, ma pausa se l'utente interagisce
+        if (!isUserInteracting) {
+          reel.scrollLeft += 0.35
+        }
         autoRaf = requestAnimationFrame(tick)
       }
       autoRaf = requestAnimationFrame(tick)
@@ -261,7 +281,9 @@ export default function Home() {
         reel.removeEventListener('scroll', onScroll)
         reel.removeEventListener('touchstart', onTouchStart)
         reel.removeEventListener('touchmove', onTouchMove)
+        reel.removeEventListener('touchend', onTouchEnd)
         if (autoRaf) cancelAnimationFrame(autoRaf)
+        if (interactionTimeout) clearTimeout(interactionTimeout)
       }
     }
 
