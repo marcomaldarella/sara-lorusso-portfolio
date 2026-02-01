@@ -20,6 +20,12 @@ export const schemas = [
         validation: (Rule: any) => Rule.required()
       },
       {
+        name: 'caption',
+        title: 'Caption',
+        type: 'string',
+        description: 'Optional caption for grid view',
+      },
+      {
         name: 'category',
         title: 'Category',
         type: 'string',
@@ -36,13 +42,14 @@ export const schemas = [
       select: {
         title: 'title',
         media: 'image',
-        category: 'category'
+        category: 'category',
+        caption: 'caption'
       },
       prepare(selection: any) {
-        const {title, media, category} = selection
+        const {title, media, category, caption} = selection
         return {
           title: title || 'Untitled',
-          subtitle: category || 'work',
+          subtitle: caption ? `${category || 'work'} — ${caption}` : (category || 'work'),
           media: media
         }
       }

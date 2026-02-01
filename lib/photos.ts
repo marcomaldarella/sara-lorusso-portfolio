@@ -5,11 +5,13 @@ export type MediaItem = {
   height: number
   _id?: string
   category?: 'work' | 'commissioned'
+  caption?: string
 }
 
 export interface SanityPhoto {
   _id: string
   title?: string
+  caption?: string
   category: 'work' | 'commissioned'
   image: {
     asset: {
@@ -45,7 +47,8 @@ export async function getPhotosForCanvas(): Promise<MediaItem[]> {
       width: photo.image.asset.metadata.dimensions.width,
       height: photo.image.asset.metadata.dimensions.height,
       _id: photo._id,
-      category: photo.category
+      category: photo.category,
+      caption: photo.caption
     }))
   } catch (error) {
     console.warn('Failed to fetch photos from Sanity, falling back to static images:', error)

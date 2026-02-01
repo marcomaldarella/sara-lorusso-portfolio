@@ -48,6 +48,7 @@ export const queries = {
   getAllPhotos: `*[_type == "photo"] {
     _id,
     title,
+    caption,
     image {
       asset-> {
         _id,
@@ -67,6 +68,7 @@ export const queries = {
   getPhotosByCategory: `*[_type == "photo" && category == $category] {
     _id,
     title,
+    caption,
     image {
       asset-> {
         _id,

@@ -18,7 +18,10 @@ async function addCorsOrigins() {
       'http://localhost:3000',
       'http://127.0.0.1:3000',
       'https://localhost:3000',
-      'https://127.0.0.1:3000'
+      'https://127.0.0.1:3000',
+      // Vercel preview/prod domains
+      'https://sara-lorusso-website-git-main-marcomaldarellas-projects.vercel.app',
+      'https://sara-lorusso-website-rkdj09t84-marcomaldarellas-projects.vercel.app'
     ]
     
     for (const origin of origins) {
