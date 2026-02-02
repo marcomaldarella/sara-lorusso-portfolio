@@ -4,7 +4,7 @@ export type MediaItem = {
   width: number
   height: number
   _id?: string
-  category?: 'work' | 'commissioned'
+  category?: 'personal' | 'commissioned'
   caption?: string
 }
 
@@ -12,7 +12,7 @@ export interface SanityPhoto {
   _id: string
   title?: string
   caption?: string
-  category: 'work' | 'commissioned'
+  category: 'personal' | 'commissioned'
   image: {
     asset: {
       _id: string
@@ -59,14 +59,14 @@ export async function getPhotosForCanvas(): Promise<MediaItem[]> {
 }
 
 function getStaticImages(): MediaItem[] {
-  const workImages = Array.from({ length: 63 }, (_, i) => 
-    `/works/${String(i + 1).padStart(2, '0')}.jpg`
+  const personalImages = Array.from({ length: 63 }, (_, i) =>
+    `/personal/${String(i + 1).padStart(2, '0')}.jpg`
   )
   const commissionedImages = Array.from({ length: 26 }, (_, i) => 
     `/commissioned/${String(i + 1).padStart(2, '0')}.jpg`
   )
   
-  const allImages = [...workImages, ...commissionedImages]
+  const allImages = [...personalImages, ...commissionedImages]
   
   return allImages.map(url => ({
     url,

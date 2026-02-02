@@ -31,7 +31,7 @@ function loadEnvFromFiles() {
 // Carica env prima di creare il client
 loadEnvFromFiles()
 
-type Category = 'work' | 'commissioned'
+type Category = 'personal' | 'commissioned'
 
 const client = createClient({
   projectId: process.env.NEXT_PUBLIC_SANITY_PROJECT_ID!,
@@ -136,15 +136,15 @@ async function importFolder(publicDir: string, subdir: string, category: Categor
 async function importPhotos() {
   ensureEnv()
   const args = process.argv.slice(2)
-  const onlyWork = args.includes('--work')
+  const onlyPersonal = args.includes('--personal')
   const onlyCommissioned = args.includes('--commissioned')
   const publicDir = path.join(process.cwd(), 'public')
   const existingTitles = await getExistingTitles()
 
   if (!onlyCommissioned) {
-    await importFolder(publicDir, 'works', 'work', existingTitles)
+    await importFolder(publicDir, 'personal', 'personal', existingTitles)
   }
-  if (!onlyWork) {
+  if (!onlyPersonal) {
     await importFolder(publicDir, 'commissioned', 'commissioned', existingTitles)
   }
 

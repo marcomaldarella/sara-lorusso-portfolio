@@ -73,7 +73,7 @@ async function migratePhotos() {
       const asset = await uploadImageToSanity(path.join(worksDir, file))
       
       if (asset) {
-        const doc = await createPhotoDocument(asset, 'work', file)
+        const doc = await createPhotoDocument(asset, 'personal', file)
         if (doc) {
           console.log(`✅ Created photo: ${doc.title}`)
         }

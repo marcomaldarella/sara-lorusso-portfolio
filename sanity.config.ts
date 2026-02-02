@@ -22,7 +22,7 @@ export default defineConfig({
               .child(
                 S.documentList()
                   .title('Personal Photos')
-                  .filter('_type == "photo" && category == "work"')
+                  .filter('_type == "photo" && category == "personal"')
               ),
             S.listItem()
               .title('Commissioned')

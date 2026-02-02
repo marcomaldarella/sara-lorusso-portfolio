@@ -15,6 +15,15 @@ const nextConfig = {
     buildActivity: false,
     appIsrStatus: false,
   },
+  async redirects() {
+    return [
+      {
+        source: '/work',
+        destination: '/personal',
+        permanent: true,
+      },
+    ]
+  },
 }
 
 export default nextConfig

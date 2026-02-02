@@ -47,7 +47,7 @@ const getMarqueeIterations = (totalImages: number) => {
   return Math.max(3, Math.ceil(requiredCoverage / Math.max(1, totalImages)))
 }
 
-export default function WorkPage() {
+export default function PersonalPage() {
   // Fetch dinamico delle immagini da Sanity
   const [images, setImages] = useState<PhotoImage[]>([])
   const [isLoadingPhotos, setIsLoadingPhotos] = useState(true)
@@ -68,7 +68,7 @@ export default function WorkPage() {
     const loadPhotos = async () => {
       setIsLoadingPhotos(true)
       try {
-        const photos = await fetchPhotosByCategory('work')
+        const photos = await fetchPhotosByCategory('personal')
         setImages(photos)
         // Preload delle prime immagini
         await preloadPhotos(photos)

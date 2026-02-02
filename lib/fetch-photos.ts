@@ -28,7 +28,7 @@ function optimizedUrl(rawUrl: string, width: number, quality = 80): string {
  * Con fallback a immagini statiche se il fetch fallisce
  */
 export async function fetchPhotosByCategory(
-  category: 'work' | 'commissioned'
+  category: 'personal' | 'commissioned'
 ): Promise<PhotoImage[]> {
   try {
     const query = `*[_type == "photo" && category == $category] | order(_createdAt desc) {
@@ -84,9 +84,9 @@ export async function fetchPhotosByCategory(
 /**
  * Fallback: genera elenco di immagini statiche da /public
  */
-function getFallbackPhotos(category: 'work' | 'commissioned'): PhotoImage[] {
-  const totalCount = category === 'work' ? 63 : 26
-  const folder = category === 'work' ? 'works' : 'commissioned'
+function getFallbackPhotos(category: 'personal' | 'commissioned'): PhotoImage[] {
+  const totalCount = category === 'personal' ? 63 : 26
+  const folder = category === 'personal' ? 'personal' : 'commissioned'
   return Array.from({ length: totalCount }, (_, i) => {
     const path = `/${folder}/${String(i + 1).padStart(2, '0')}.jpg`
     return {

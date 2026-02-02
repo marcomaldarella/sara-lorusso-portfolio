@@ -31,11 +31,11 @@ export const schemas = [
         type: 'string',
         options: {
           list: [
-            {title: 'Personal', value: 'work'},
+            {title: 'Personal', value: 'personal'},
             {title: 'Commissioned', value: 'commissioned'}
           ]
         },
-        initialValue: 'work'
+        initialValue: 'personal'
       }
     ],
     preview: {
@@ -47,7 +47,7 @@ export const schemas = [
       },
       prepare(selection: any) {
         const {title, media, category, caption} = selection
-        const catLabel = category === 'work' ? 'personal' : (category || 'personal')
+        const catLabel = category === 'personal' ? 'personal' : (category || 'personal')
         return {
           title: title || 'Untitled',
           subtitle: caption ? `${catLabel} — ${caption}` : catLabel,

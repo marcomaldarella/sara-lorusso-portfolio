@@ -48,11 +48,11 @@ const preload = async (urls: string[]) => {
   )
 }
 
-const filterWorkOnly = (items: TrailPhoto[]) =>
+const filterPersonalOnly = (items: TrailPhoto[]) =>
   items.filter((item) => {
     if (!item?.url) return false
     if (item.category === "commissioned") return false
-    if (item.category === "work") return true
+    if (item.category === "personal") return true
     // fallback for static assets
     if (item.url.includes("/commissioned/")) return false
     return true
@@ -123,8 +123,8 @@ export default function Home() {
     const load = async () => {
       try {
         const all = await getPhotosForCanvas()
-        const workOnly = filterWorkOnly(all)
-        const selected = shuffle(workOnly).slice(0, MAX_IMAGES)
+        const personalOnly = filterPersonalOnly(all)
+        const selected = shuffle(personalOnly).slice(0, MAX_IMAGES)
 
         if (!mounted) return
         setPhotos(selected)
@@ -334,7 +334,7 @@ export default function Home() {
   }, [isReady, photos.length])
 
   const handleEnter = () => {
-    router.push("/work")
+    router.push("/personal")
   }
 
   return (
