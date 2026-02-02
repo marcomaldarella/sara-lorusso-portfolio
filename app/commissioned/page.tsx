@@ -2,29 +2,34 @@
 
 import { Suspense, useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { useSearchParams } from 'next/navigation'
+import { fetchPhotosByCategory, preloadPhotos, type PhotoImage } from '@/lib/fetch-photos'
 
-// Immagini commissioned (26 foto)
+type CommissionedImage = PhotoImage
+
+type ViewMode = 'grid' | 'stack' | 'reel'
+
+const formatCounter = (value: number) => String(value).padStart(2, '0')
 
 // Calcola dinamicamente configurazione marquee basato su viewport
-const calculateMarqueeConfig = () => {
+const calculateMarqueeConfig = (totalImages: number = 26) => {
   if (typeof window === 'undefined') return {
     viewportWidth: 1920,
     thumbWidth: 60,
     thumbsPerViewport: 32,
     iterations: 2,
     totalWidth: 7560,
-    totalImages: 63
+    totalImages
   }
   
   const viewportWidth = window.innerWidth
   const THUMB_WIDTH = 60 // width (50px) + gap (10px)
   const thumbsPerViewport = Math.ceil(viewportWidth / THUMB_WIDTH)
-  const totalImages = 26
+  const totalImages_value = totalImages
   
   // Serve 3x coverage per scorrimento continuo (3 span)
   const requiredCoverage = thumbsPerViewport * 3
-  const iterations = Math.ceil(requiredCoverage / totalImages)
-  const totalWidth = iterations * totalImages * THUMB_WIDTH
+  const iterations = Math.ceil(requiredCoverage / totalImages_value)
+  const totalWidth = iterations * totalImages_value * THUMB_WIDTH
   
   return {
     viewportWidth,
@@ -32,40 +37,9 @@ const calculateMarqueeConfig = () => {
     thumbsPerViewport,
     iterations,
     totalWidth,
-    totalImages
+    totalImages: totalImages_value
   }
 }
-
-// Immagini commissioned (26 foto) con metadati opzionali
-type CommissionedImage = {
-  src: string
-  span: number
-  aspect: string
-  category?: string
-  caption?: string
-}
-
-const baseImages: CommissionedImage[] = Array.from({ length: 26 }, (_, i) => ({
-  src: `/commissioned/${String(i + 1).padStart(2, '0')}.jpg`,
-  span: 1,
-  aspect: '3/4'
-}))
-
-const commissionedMeta: Record<string, { category?: string; caption?: string }> = {
-  // '/commissioned/01.jpg': { category: 'fashion', caption: 'Brand X — Campaign SS25' },
-}
-
-const imagesWithMeta: CommissionedImage[] = baseImages.map((img) => ({
-  ...img,
-  category: commissionedMeta[img.src]?.category,
-  caption: commissionedMeta[img.src]?.caption,
-}))
-
-// reelImages verrà costruito dopo il filtro per categoria
-
-type ViewMode = 'grid' | 'stack' | 'reel'
-
-const formatCounter = (value: number) => String(value).padStart(2, '0')
 
 // Calcola quante ripetizioni servono per coprire il viewport
 const getMarqueeIterations = (totalImages: number) => {
@@ -78,17 +52,40 @@ const getMarqueeIterations = (totalImages: number) => {
 }
 
 function CommissionedContent() {
+  // Fetch dinamico delle immagini da Sanity
+  const [allImages, setAllImages] = useState<CommissionedImage[]>([])
+  const [isLoadingPhotos, setIsLoadingPhotos] = useState(true)
   const searchParams = useSearchParams()
   const selectedCategory = searchParams.get('category') || null
   const currentImages = useMemo(() => {
-    if (!selectedCategory) return imagesWithMeta
-    const inCat = imagesWithMeta.filter((img) => img.category === selectedCategory)
-    const outCat = imagesWithMeta.filter((img) => img.category !== selectedCategory)
+    if (!selectedCategory) return allImages
+    const inCat = allImages.filter((img) => img.category === selectedCategory)
+    const outCat = allImages.filter((img) => img.category !== selectedCategory)
     return [...inCat, ...outCat]
-  }, [selectedCategory])
+  }, [selectedCategory, allImages])
+
+  // Fetch immagini da Sanity al mount
+  useEffect(() => {
+    const loadPhotos = async () => {
+      setIsLoadingPhotos(true)
+      try {
+        const photos = await fetchPhotosByCategory('commissioned')
+        setAllImages(photos)
+        // Preload delle prime immagini
+        await preloadPhotos(photos)
+      } catch (error) {
+        console.error('Failed to load photos:', error)
+        setAllImages([])
+      } finally {
+        setIsLoadingPhotos(false)
+      }
+    }
+    loadPhotos()
+  }, [])
 
   const [viewMode, setViewMode] = useState<ViewMode>('grid')
   const [transitionPhase, setTransitionPhase] = useState<'out' | 'in' | null>(null)
+  const [isTransitioning, setIsTransitioning] = useState(false)
   const [heroIndex, setHeroIndex] = useState(0)
   const [isLoaded, setIsLoaded] = useState(false)
   const [marqueeIterations, setMarqueeIterations] = useState(4)
@@ -99,12 +96,13 @@ function CommissionedContent() {
   const sliderRef = useRef<HTMLDivElement>(null)
   const totalPhotos = currentImages.length
   const photoCounter = `${formatCounter(heroIndex + 1)}/${formatCounter(totalPhotos)}`
-  const reelImages = useMemo(() => [...currentImages, ...currentImages], [currentImages])
+  const reelImages = useMemo(() => (currentImages.length > 0 ? [...currentImages, ...currentImages] : []), [currentImages])
   
   // Array ripetuto per marquee - garantisce copertura completa viewport
   const marqueeImages = useMemo(() => {
-    const result = []
-    for (let i = 0; i < marqueeIterations; i++) {
+    const iterations = Math.max(1, getMarqueeIterations(currentImages.length))
+    const result: CommissionedImage[] = []
+    for (let i = 0; i < iterations; i++) {
       result.push(...currentImages)
     }
     return result
@@ -132,8 +130,9 @@ function CommissionedContent() {
 
   // Preload immagini + animazione iniziale
   useEffect(() => {
-    const preloadImages = async () => {
-      const imagePromises = currentImages.slice(0, 10).map((img) => {
+    if (currentImages.length === 0 || isLoadingPhotos) return
+    const preloadAll = async () => {
+      const imagePromises = currentImages.map((img) => {
         return new Promise((resolve) => {
           const image = new Image()
           image.onload = resolve
@@ -146,8 +145,8 @@ function CommissionedContent() {
       setTimeout(() => setIsLoaded(true), 100)
     }
     
-    preloadImages()
-  }, [currentImages])
+    preloadAll()
+  }, [currentImages, isLoadingPhotos])
 
   // Precompute aspect ratio for all images before building stack groups
   useEffect(() => {
@@ -518,6 +517,28 @@ function CommissionedContent() {
   return (
     <>
       <main className={`w-full h-screen ${viewMode === 'reel' ? 'is-reel' : viewMode === 'stack' ? 'is-stack' : 'is-grid'} bg-white text-[#111]`}>
+        {/* Loading state */}
+        {isLoadingPhotos && (
+          <div className="w-full h-full flex items-center justify-center bg-white">
+            <div className="text-center">
+              <div className="text-sm text-gray-500 mb-4">Caricamento fotografie...</div>
+              <div className="inline-block w-8 h-8 border-2 border-gray-200 border-t-gray-800 rounded-full animate-spin" />
+            </div>
+          </div>
+        )}
+        
+        {/* No photos state */}
+        {!isLoadingPhotos && currentImages.length === 0 && (
+          <div className="w-full h-full flex items-center justify-center bg-white">
+            <div className="text-center text-gray-500">
+              <p className="text-sm">Nessuna fotografia disponibile</p>
+            </div>
+          </div>
+        )}
+        
+        {/* Main content - only render when photos are loaded */}
+        {currentImages.length > 0 && (
+        <>
         {/* View Switcher - Top Right */}
         <div className="fixed bottom-[1em] right-[1em] z-[100] flex items-center gap-4 text-xs nav-menu work-view-toggle">
           <span className="pointer-events-none work-photo-counter">{photoCounter}</span>
@@ -526,9 +547,16 @@ function CommissionedContent() {
             onClick={(e) => {
               e.preventDefault()
               e.stopPropagation()
+              // Blocca clic multipli durante transizione
+              if (isTransitioning) return
+              setIsTransitioning(true)
+              
               const nextMode: ViewMode =
                 viewMode === 'grid' ? 'stack' : viewMode === 'stack' ? 'reel' : 'grid'
               setTransitionPhase('out')
+              
+              // Delay ottimizzato per browser mobili - minimizza il flashing
+              const transitionDuration = /iPhone|iPad|Android/.test(navigator.userAgent) ? 240 : 280
               window.setTimeout(() => {
                 setViewMode(nextMode)
                 // Reset heroIndex quando si torna alla grid view
@@ -536,11 +564,15 @@ function CommissionedContent() {
                   setHeroIndex(0)
                 }
                 setTransitionPhase('in')
-                window.setTimeout(() => setTransitionPhase(null), 260)
-              }, 220)
+                window.setTimeout(() => {
+                  setTransitionPhase(null)
+                  setIsTransitioning(false)
+                }, 320)
+              }, transitionDuration)
             }}
             onPointerDown={(e) => { e.stopPropagation() }}
             onTouchStart={(e) => { e.stopPropagation() }}
+            disabled={isTransitioning}
             className="p-2 bg-transparent border-0 hover:opacity-70 transition pointer-events-auto work-view-toggle-button"
           >
             {viewMode === 'grid' ? (
@@ -601,7 +633,7 @@ function CommissionedContent() {
                       key={`a-${idx}`}
                       className="works-marquee-thumb"
                     >
-                      <img src={img.src} alt="" />
+                      <img src={img.thumbSrc || img.src} alt="" />
                     </div>
                   ))}
                 </div>
@@ -613,7 +645,7 @@ function CommissionedContent() {
                       key={`b-${idx}`}
                       className="works-marquee-thumb"
                     >
-                      <img src={img.src} alt="" />
+                      <img src={img.thumbSrc || img.src} alt="" />
                     </div>
                   ))}
                 </div>
@@ -625,7 +657,7 @@ function CommissionedContent() {
                       key={`c-${idx}`}
                       className="works-marquee-thumb"
                     >
-                      <img src={img.src} alt="" />
+                      <img src={img.thumbSrc || img.src} alt="" />
                     </div>
                   ))}
                 </div>
@@ -744,6 +776,8 @@ function CommissionedContent() {
           </div>
         )}
         </div>
+        </>
+        )}
       </main>
 
       {/* Global styles moved to app/globals.css */}

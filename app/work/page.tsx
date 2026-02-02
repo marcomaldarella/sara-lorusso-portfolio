@@ -1,24 +1,26 @@
 'use client'
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { fetchPhotosByCategory, preloadPhotos, type PhotoImage } from '@/lib/fetch-photos'
 
-// Immagini works (63 foto)
+type ViewMode = 'grid' | 'stack' | 'reel'
+
+const formatCounter = (value: number) => String(value).padStart(2, '0')
 
 // Calcola dinamicamente configurazione marquee basato su viewport
-const calculateMarqueeConfig = () => {
+const calculateMarqueeConfig = (totalImages: number = 63) => {
   if (typeof window === 'undefined') return {
     viewportWidth: 1920,
     thumbWidth: 60,
     thumbsPerViewport: 32,
     iterations: 2,
     totalWidth: 7560,
-    totalImages: 63
+    totalImages
   }
   
   const viewportWidth = window.innerWidth
   const THUMB_WIDTH = 60 // width (50px) + gap (10px)
   const thumbsPerViewport = Math.ceil(viewportWidth / THUMB_WIDTH)
-  const totalImages = 63
   
   // Serve 3x coverage per scorrimento continuo (3 span)
   const requiredCoverage = thumbsPerViewport * 3
@@ -35,30 +37,20 @@ const calculateMarqueeConfig = () => {
   }
 }
 
-// Immagini works (63 foto)
-const images = Array.from({ length: 63 }, (_, i) => ({
-  src: `/works/${String(i + 1).padStart(2, '0')}.jpg`,
-  span: 1,
-  aspect: '3/4'
-}))
-
-const reelImages = [...images, ...images]
-
-type ViewMode = 'grid' | 'stack' | 'reel'
-
-const formatCounter = (value: number) => String(value).padStart(2, '0')
-
 // Calcola quante ripetizioni servono per coprire il viewport
-const getMarqueeIterations = () => {
+const getMarqueeIterations = (totalImages: number) => {
   if (typeof window === 'undefined') return 3
   const viewportWidth = window.innerWidth
   const THUMB_WIDTH = 60
   const thumbsPerViewport = Math.ceil(viewportWidth / THUMB_WIDTH)
   const requiredCoverage = thumbsPerViewport * 3
-  return Math.max(3, Math.ceil(requiredCoverage / images.length))
+  return Math.max(3, Math.ceil(requiredCoverage / Math.max(1, totalImages)))
 }
 
-export default function Home() {
+export default function WorkPage() {
+  // Fetch dinamico delle immagini da Sanity
+  const [images, setImages] = useState<PhotoImage[]>([])
+  const [isLoadingPhotos, setIsLoadingPhotos] = useState(true)
   const [viewMode, setViewMode] = useState<ViewMode>('grid')
   const [transitionPhase, setTransitionPhase] = useState<'out' | 'in' | null>(null)
   const [isTransitioning, setIsTransitioning] = useState(false)
@@ -70,17 +62,41 @@ export default function Home() {
   const reelRef = useRef<HTMLDivElement>(null)
   const stackScrollRef = useRef<HTMLDivElement>(null)
   const sliderRef = useRef<HTMLDivElement>(null)
+  
+  // Fetch immagini da Sanity al mount
+  useEffect(() => {
+    const loadPhotos = async () => {
+      setIsLoadingPhotos(true)
+      try {
+        const photos = await fetchPhotosByCategory('work')
+        setImages(photos)
+        // Preload delle prime immagini
+        await preloadPhotos(photos)
+      } catch (error) {
+        console.error('Failed to load photos:', error)
+        setImages([]) // Fallback vuoto, il render gestirà il caso
+      } finally {
+        setIsLoadingPhotos(false)
+      }
+    }
+    loadPhotos()
+  }, [])
+  
   const totalPhotos = images.length
   const photoCounter = `${formatCounter(heroIndex + 1)}/${formatCounter(totalPhotos)}`
   
+  // Array ripetuto per reel - garantisce loop infinito
+  const reelImages = useMemo(() => (images.length > 0 ? [...images, ...images] : []), [images])
+  
   // Array ripetuto per marquee - garantisce copertura completa viewport
   const marqueeImages = useMemo(() => {
-    const result = []
-    for (let i = 0; i < marqueeIterations; i++) {
+    const iterations = Math.max(1, getMarqueeIterations(images.length))
+    const result: PhotoImage[] = []
+    for (let i = 0; i < iterations; i++) {
       result.push(...images)
     }
     return result
-  }, [marqueeIterations])
+  }, [images])
   
   // Stato per marquee con inerzia
   const sliderState = useRef({
@@ -91,7 +107,7 @@ export default function Home() {
   // Aggiorna iterazioni su resize/load
   useEffect(() => {
     const updateIterations = () => {
-      setMarqueeIterations(getMarqueeIterations())
+      setMarqueeIterations(getMarqueeIterations(images.length))
     }
     updateIterations()
     window.addEventListener('resize', updateIterations)
@@ -100,7 +116,8 @@ export default function Home() {
       window.removeEventListener('resize', updateIterations)
       window.removeEventListener('orientationchange', updateIterations)
     }
-  }, [])
+  }, [images.length])
+  
   // Aggiorna chiave di shuffle quando si entra nella view stack
   useEffect(() => {
     if (viewMode === 'stack') {
@@ -108,10 +125,10 @@ export default function Home() {
     }
   }, [viewMode])
 
-  // Preload TUTTE le immagini all'avvio per evitare problemi su Safari
+  // Preload TUTTE le immagini per evitare problemi su Safari
   useEffect(() => {
-    const preloadImages = async () => {
-      // Precarica tutte le immagini in parallelo per evitare loading durante cambio view
+    if (images.length === 0 || isLoadingPhotos) return
+    const preloadAll = async () => {
       const imagePromises = images.map((img) => {
         return new Promise((resolve) => {
           const image = new Image()
@@ -125,8 +142,8 @@ export default function Home() {
       setTimeout(() => setIsLoaded(true), 100)
     }
     
-    preloadImages()
-  }, [])
+    preloadAll()
+  }, [images, isLoadingPhotos])
 
   // Precompute aspect ratio for all images before building stack groups
   useEffect(() => {
@@ -490,6 +507,28 @@ export default function Home() {
   return (
     <>
       <main className={`w-full h-screen ${viewMode === 'reel' ? 'is-reel' : viewMode === 'stack' ? 'is-stack' : 'is-grid'} bg-white text-[#111]`}>
+        {/* Loading state */}
+        {isLoadingPhotos && (
+          <div className="w-full h-full flex items-center justify-center bg-white">
+            <div className="text-center">
+              <div className="text-sm text-gray-500 mb-4">Caricamento fotografie...</div>
+              <div className="inline-block w-8 h-8 border-2 border-gray-200 border-t-gray-800 rounded-full animate-spin" />
+            </div>
+          </div>
+        )}
+        
+        {/* No photos state */}
+        {!isLoadingPhotos && images.length === 0 && (
+          <div className="w-full h-full flex items-center justify-center bg-white">
+            <div className="text-center text-gray-500">
+              <p className="text-sm">Nessuna fotografia disponibile</p>
+            </div>
+          </div>
+        )}
+        
+        {/* Main content - only render when photos are loaded */}
+        {images.length > 0 && (
+        <>
         {/* View Switcher - Top Right */}
         <div className="fixed bottom-[1em] right-[1em] z-[100] flex items-center gap-4 text-xs nav-menu work-view-toggle">
           <span className="pointer-events-none work-photo-counter">{photoCounter}</span>
@@ -506,7 +545,8 @@ export default function Home() {
                 viewMode === 'grid' ? 'stack' : viewMode === 'stack' ? 'reel' : 'grid'
               setTransitionPhase('out')
               
-              // Delay più lungo per dare tempo a Safari di fare cleanup
+              // Delay ottimizzato per browser mobili - minimizza il flashing
+              const transitionDuration = /iPhone|iPad|Android/.test(navigator.userAgent) ? 240 : 280
               window.setTimeout(() => {
                 setViewMode(nextMode)
                 // Reset heroIndex quando si torna alla grid view
@@ -517,8 +557,8 @@ export default function Home() {
                 window.setTimeout(() => {
                   setTransitionPhase(null)
                   setIsTransitioning(false)
-                }, 350)
-              }, 280)
+                }, 320)
+              }, transitionDuration)
             }}
             onPointerDown={(e) => { e.stopPropagation() }}
             onTouchStart={(e) => { e.stopPropagation() }}
@@ -576,7 +616,7 @@ export default function Home() {
                       key={`a-${idx}`}
                       className="works-marquee-thumb"
                     >
-                      <img src={img.src} alt="" />
+                      <img src={img.thumbSrc || img.src} alt="" />
                     </div>
                   ))}
                 </div>
@@ -588,7 +628,7 @@ export default function Home() {
                       key={`b-${idx}`}
                       className="works-marquee-thumb"
                     >
-                      <img src={img.src} alt="" />
+                      <img src={img.thumbSrc || img.src} alt="" />
                     </div>
                   ))}
                 </div>
@@ -600,7 +640,7 @@ export default function Home() {
                       key={`c-${idx}`}
                       className="works-marquee-thumb"
                     >
-                      <img src={img.src} alt="" />
+                      <img src={img.thumbSrc || img.src} alt="" />
                     </div>
                   ))}
                 </div>
@@ -673,6 +713,8 @@ export default function Home() {
           </div>
         )}
         </div>
+        </>
+        )}
       </main>
 
       {/* Global styles moved to app/globals.css */}
