@@ -18,10 +18,10 @@ export default defineConfig({
           .title('Content')
           .items([
             S.listItem()
-              .title('Work')
+              .title('Personal')
               .child(
                 S.documentList()
-                  .title('Work Photos')
+                  .title('Personal Photos')
                   .filter('_type == "photo" && category == "work"')
               ),
             S.listItem()

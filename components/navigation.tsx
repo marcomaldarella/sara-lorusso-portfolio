@@ -35,7 +35,7 @@ export default function Navigation({ hideName = false }: NavigationProps) {
 
         <div className="flex gap-6 nav-menu" style={{ marginRight: "1em" }}>
           <Link href="/work" className="text-[#111] hover:opacity-60 transition lowercase text-xs nav-link">
-            work
+            personal
           </Link>
           <Link href="/commissioned" className="text-[#111] hover:opacity-60 transition lowercase text-xs nav-link">
             commissioned
