@@ -517,23 +517,9 @@ function CommissionedContent() {
   return (
     <>
       <main className={`w-full h-screen ${viewMode === 'reel' ? 'is-reel' : viewMode === 'stack' ? 'is-stack' : 'is-grid'} bg-white text-[#111]`}>
-        {/* Loading state */}
-        {isLoadingPhotos && (
-          <div className="w-full h-full flex items-center justify-center bg-white">
-            <div className="text-center">
-              <div className="text-sm text-gray-500 mb-4">Caricamento fotografie...</div>
-              <div className="inline-block w-8 h-8 border-2 border-gray-200 border-t-gray-800 rounded-full animate-spin" />
-            </div>
-          </div>
-        )}
-        
-        {/* No photos state */}
-        {!isLoadingPhotos && currentImages.length === 0 && (
-          <div className="w-full h-full flex items-center justify-center bg-white">
-            <div className="text-center text-gray-500">
-              <p className="text-sm">Nessuna fotografia disponibile</p>
-            </div>
-          </div>
+        {/* Loading / empty: schermo bianco senza testo */}
+        {(isLoadingPhotos || currentImages.length === 0) && (
+          <div className="w-full h-full bg-white" />
         )}
         
         {/* Main content - only render when photos are loaded */}
