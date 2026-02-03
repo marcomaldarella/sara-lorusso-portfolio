@@ -515,8 +515,15 @@ export default function PersonalPage() {
         {/* Main content - only render when photos are loaded */}
         {images.length > 0 && (
         <>
-        {/* View Switcher - Top Right */}
-        <div className="fixed bottom-[1em] right-[1em] z-[100] flex items-center gap-4 text-xs nav-menu work-view-toggle">
+        {/* Caption - visible in all views, same baseline as counter */}
+        {images[heroIndex]?.caption && (
+          <div className={`fixed left-[1em] z-[90] text-xs pointer-events-none transition-all duration-300 ease-out line-clamp-1 ${viewMode === 'grid' ? 'bottom-[6em]' : 'bottom-[1em]'}`}>
+            {images[heroIndex]!.caption}
+          </div>
+        )}
+
+        {/* View Switcher - moves up in grid to avoid marquee */}
+        <div className={`fixed right-[1em] z-[100] flex items-center gap-4 text-xs nav-menu work-view-toggle transition-all duration-300 ease-out ${viewMode === 'grid' ? 'bottom-[6em]' : 'bottom-[1em]'}`}>
           <span className="pointer-events-none work-photo-counter">{photoCounter}</span>
           <button
             type="button"

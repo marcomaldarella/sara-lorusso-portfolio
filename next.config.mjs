@@ -15,6 +15,10 @@ const nextConfig = {
     buildActivity: false,
     appIsrStatus: false,
   },
+  // Avoid Turbopack picking the wrong workspace root when multiple lockfiles exist.
+  turbopack: {
+    root: process.cwd(),
+  },
   async redirects() {
     return [
       {

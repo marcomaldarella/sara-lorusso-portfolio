@@ -1,9 +1,15 @@
+import {orderRankField, orderRankOrdering} from '@sanity/orderable-document-list'
+
 export const schemas = [
   {
     name: 'photo',
     title: 'Photo',
     type: 'document',
+    // Abilita ordinamenti custom (usato dal desk item orderable)
+    orderings: [orderRankOrdering],
     fields: [
+      // Campo nascosto usato per il drag & drop nell'elenco Personal
+      orderRankField({ type: 'photo' }),
       {
         name: 'title',
         title: 'Title',
@@ -36,7 +42,14 @@ export const schemas = [
           ]
         },
         initialValue: 'personal'
-      }
+      },
+      {
+        name: 'subcategory',
+        title: 'Subcategory',
+        type: 'string',
+        description: 'Group photos by subcategory (e.g., "Portraits", "Landscapes")',
+      },
+      // rimuoviamo 'order' numerico: usiamo orderRank del plugin
     ],
     preview: {
       select: {
@@ -47,10 +60,9 @@ export const schemas = [
       },
       prepare(selection: any) {
         const {title, media, category, caption} = selection
-        const catLabel = category === 'personal' ? 'personal' : (category || 'personal')
         return {
           title: title || 'Untitled',
-          subtitle: caption ? `${catLabel} — ${caption}` : catLabel,
+          subtitle: caption ? `${category || 'personal'} — ${caption}` : (category || 'personal'),
           media: media
         }
       }

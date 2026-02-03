@@ -517,16 +517,37 @@ function CommissionedContent() {
   return (
     <>
       <main className={`w-full h-screen ${viewMode === 'reel' ? 'is-reel' : viewMode === 'stack' ? 'is-stack' : 'is-grid'} bg-white text-[#111]`}>
-        {/* Loading / empty: schermo bianco senza testo */}
-        {(isLoadingPhotos || currentImages.length === 0) && (
-          <div className="w-full h-full bg-white" />
+        {/* Loading state */}
+        {isLoadingPhotos && (
+          <div className="w-full h-full flex items-center justify-center bg-white">
+            <div className="text-center">
+              <div className="text-sm text-gray-500 mb-4">Caricamento fotografie...</div>
+              <div className="inline-block w-8 h-8 border-2 border-gray-200 border-t-gray-800 rounded-full animate-spin" />
+            </div>
+          </div>
+        )}
+        
+        {/* No photos state */}
+        {!isLoadingPhotos && currentImages.length === 0 && (
+          <div className="w-full h-full flex items-center justify-center bg-white">
+            <div className="text-center text-gray-500">
+              <p className="text-sm">Nessuna fotografia disponibile</p>
+            </div>
+          </div>
         )}
         
         {/* Main content - only render when photos are loaded */}
         {currentImages.length > 0 && (
         <>
-        {/* View Switcher - Top Right */}
-        <div className="fixed bottom-[1em] right-[1em] z-[100] flex items-center gap-4 text-xs nav-menu work-view-toggle">
+        {/* Caption - visible in all views, same baseline as counter */}
+        {currentImages[heroIndex]?.caption && (
+          <div className={`fixed left-[1em] z-[90] text-xs pointer-events-none transition-all duration-300 ease-out line-clamp-1 ${viewMode === 'grid' ? 'bottom-[6em]' : 'bottom-[1em]'}`}>
+            {currentImages[heroIndex]!.caption}
+          </div>
+        )}
+
+        {/* View Switcher - moves up in grid to avoid marquee */}
+        <div className={`fixed right-[1em] z-[100] flex items-center gap-4 text-xs nav-menu work-view-toggle transition-all duration-300 ease-out ${viewMode === 'grid' ? 'bottom-[6em]' : 'bottom-[1em]'}`}>
           <span className="pointer-events-none work-photo-counter">{photoCounter}</span>
           <button
             type="button"
@@ -600,13 +621,6 @@ function CommissionedContent() {
                 )}
               </div>
 
-              {/* Caption nella view primaria (grid) */}
-              {viewMode === 'grid' && currentImages[heroIndex]?.caption && (
-                <div className="fixed bottom-[1em] left-[1em] z-[90] text-xs pointer-events-none">
-                  {currentImages[heroIndex]!.caption}
-                </div>
-              )}
-
               {/* Bottom Marquee - tre span per loop infinito */}
               <div ref={sliderRef} className="works-grid-marquee">
                 {/* Overlay gradiente bianco */}
@@ -619,7 +633,7 @@ function CommissionedContent() {
                       key={`a-${idx}`}
                       className="works-marquee-thumb"
                     >
-                      <img src={img.thumbSrc || img.src} alt="" />
+                      <img src={img.src} alt="" />
                     </div>
                   ))}
                 </div>
@@ -631,7 +645,7 @@ function CommissionedContent() {
                       key={`b-${idx}`}
                       className="works-marquee-thumb"
                     >
-                      <img src={img.thumbSrc || img.src} alt="" />
+                      <img src={img.src} alt="" />
                     </div>
                   ))}
                 </div>
@@ -643,7 +657,7 @@ function CommissionedContent() {
                       key={`c-${idx}`}
                       className="works-marquee-thumb"
                     >
-                      <img src={img.thumbSrc || img.src} alt="" />
+                      <img src={img.src} alt="" />
                     </div>
                   ))}
                 </div>
