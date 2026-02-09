@@ -7,6 +7,7 @@ export type PhotoImage = {
   title?: string
   caption?: string
   category?: string
+  subcategory?: string
   _id?: string
 }
 
@@ -21,6 +22,8 @@ export async function fetchPhotosByCategory(
     const orderClause = category === 'personal'
       ? 'order(orderRank asc)'
       : 'order(subcategory asc, _createdAt desc)'
+    
+    console.log(`[fetch-photos] Fetching ${category} photos...`)
     
     const query = `*[_type == "photo" && category == $category] | ${orderClause} {
       _id,
@@ -55,6 +58,8 @@ export async function fetchPhotosByCategory(
       _id: photo._id,
       title: photo.title || 'Untitled',
       caption: photo.caption,
+      category: photo.category,
+      subcategory: photo.subcategory,
       src: photo.image?.asset?.url || getFallbackPhotoPath(category, 1),
       span: 1,
       aspect: photo.image?.asset?.metadata?.dimensions
@@ -64,7 +69,8 @@ export async function fetchPhotosByCategory(
         : '3/4',
     }))
   } catch (error) {
-    console.error(`Error fetching photos for category "${category}":`, error)
+    console.error(`[fetch-photos] Error fetching ${category} from Sanity:`, error)
+    console.warn(`[fetch-photos] Falling back to static images for ${category}`)
     // Fallback a immagini statiche se fetch fallisce
     return getFallbackPhotos(category)
   }
@@ -73,20 +79,22 @@ export async function fetchPhotosByCategory(
 /**
  * Fallback: genera elenco di immagini statiche da /public
  */
-function getFallbackPhotos(category: 'work' | 'commissioned'): PhotoImage[] {
-  const totalCount = category === 'work' ? 63 : 26
+function getFallbackPhotos(category: 'personal' | 'commissioned'): PhotoImage[] {
+  const totalCount = category === 'personal' ? 63 : 26
+  const fallbackCategory = category === 'personal' ? 'personal' : 'commissioned'
+  console.log(`[fetch-photos] Generating ${totalCount} fallback ${fallbackCategory} photos`)
   return Array.from({ length: totalCount }, (_, i) => ({
-    src: getFallbackPhotoPath(category, i + 1),
+    src: getFallbackPhotoPath(fallbackCategory, i + 1),
     span: 1,
     aspect: '3/4',
-    title: `${category} ${String(i + 1).padStart(2, '0')}`,
+    title: `${fallbackCategory} ${String(i + 1).padStart(2, '0')}`,
   }))
 }
 
 /**
  * Percorso fallback per immagini statiche
  */
-function getFallbackPhotoPath(category: 'work' | 'commissioned', index: number): string {
+function getFallbackPhotoPath(category: 'personal' | 'commissioned', index: number): string {
   return `/${category}/${String(index).padStart(2, '0')}.jpg`
 }
 

@@ -1,12 +1,12 @@
 'use client'
 
-import { Suspense, useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { Suspense, useEffect, useMemo, useRef, useState } from 'react'
 import { useSearchParams } from 'next/navigation'
 import { fetchPhotosByCategory, preloadPhotos, type PhotoImage } from '@/lib/fetch-photos'
 
 type CommissionedImage = PhotoImage
 
-type ViewMode = 'grid' | 'stack' | 'reel'
+type ViewMode = 'grid' | 'reel'
 
 const formatCounter = (value: number) => String(value).padStart(2, '0')
 
@@ -20,17 +20,17 @@ const calculateMarqueeConfig = (totalImages: number = 26) => {
     totalWidth: 7560,
     totalImages
   }
-  
+
   const viewportWidth = window.innerWidth
   const THUMB_WIDTH = 60 // width (50px) + gap (10px)
   const thumbsPerViewport = Math.ceil(viewportWidth / THUMB_WIDTH)
   const totalImages_value = totalImages
-  
+
   // Serve 3x coverage per scorrimento continuo (3 span)
   const requiredCoverage = thumbsPerViewport * 3
   const iterations = Math.ceil(requiredCoverage / totalImages_value)
   const totalWidth = iterations * totalImages_value * THUMB_WIDTH
-  
+
   return {
     viewportWidth,
     thumbWidth: THUMB_WIDTH,
@@ -64,6 +64,19 @@ function CommissionedContent() {
     return [...inCat, ...outCat]
   }, [selectedCategory, allImages])
 
+  // Images sorted by subcategory for reel view
+  const reelSortedImages = useMemo(() => {
+    const sorted = [...currentImages]
+    sorted.sort((a, b) => {
+      const subA = a.subcategory || ''
+      const subB = b.subcategory || ''
+      if (subA < subB) return -1
+      if (subA > subB) return 1
+      return 0 // maintain original order within same subcategory
+    })
+    return sorted
+  }, [currentImages])
+
   // Fetch immagini da Sanity al mount
   useEffect(() => {
     const loadPhotos = async () => {
@@ -89,15 +102,14 @@ function CommissionedContent() {
   const [heroIndex, setHeroIndex] = useState(0)
   const [isLoaded, setIsLoaded] = useState(false)
   const [marqueeIterations, setMarqueeIterations] = useState(4)
-  const [wideMap, setWideMap] = useState<Record<string, boolean>>({})
-  const [rotateMap, setRotateMap] = useState<Record<string, boolean>>({})
+  const [currentSubcategory, setCurrentSubcategory] = useState<string>('')
+  const [subcategoryOpacity, setSubcategoryOpacity] = useState(0)
   const reelRef = useRef<HTMLDivElement>(null)
-  const stackScrollRef = useRef<HTMLDivElement>(null)
   const sliderRef = useRef<HTMLDivElement>(null)
   const totalPhotos = currentImages.length
   const photoCounter = `${formatCounter(heroIndex + 1)}/${formatCounter(totalPhotos)}`
-  const reelImages = useMemo(() => (currentImages.length > 0 ? [...currentImages, ...currentImages] : []), [currentImages])
-  
+  const reelImages = useMemo(() => (reelSortedImages.length > 0 ? [...reelSortedImages, ...reelSortedImages] : []), [reelSortedImages])
+
   // Array ripetuto per marquee - garantisce copertura completa viewport
   const marqueeImages = useMemo(() => {
     const iterations = Math.max(1, getMarqueeIterations(currentImages.length))
@@ -107,7 +119,7 @@ function CommissionedContent() {
     }
     return result
   }, [marqueeIterations, currentImages])
-  
+
   // Stato per marquee con inerzia
   const sliderState = useRef({
     position: 0,
@@ -140,108 +152,45 @@ function CommissionedContent() {
           image.src = img.src
         })
       })
-      
+
       await Promise.all(imagePromises)
       setTimeout(() => setIsLoaded(true), 100)
     }
-    
+
     preloadAll()
   }, [currentImages, isLoadingPhotos])
-
-  // Precompute aspect ratio for all images before building stack groups
-  useEffect(() => {
-    if (viewMode !== 'stack') return
-    const toCheck = currentImages.filter((img) => wideMap[img.src] === undefined)
-    if (toCheck.length === 0) return
-
-    const tasks = toCheck.map((img) =>
-      new Promise<void>((resolve) => {
-        const im = new Image()
-        im.onload = () => {
-          const isWide = im.naturalWidth > im.naturalHeight
-          setWideMap((prev) => ({ ...prev, [img.src]: isWide }))
-          resolve()
-        }
-        im.onerror = () => resolve()
-        im.src = img.src
-      })
-    )
-    Promise.all(tasks).catch(() => {})
-  }, [viewMode, currentImages])
-
-  const stackGroups = useMemo(() => {
-    const wideImages: CommissionedImage[] = []
-    const verticalImages: CommissionedImage[] = []
-
-    currentImages.forEach((img) => {
-      if (wideMap[img.src]) wideImages.push(img)
-      else verticalImages.push(img)
-    })
-
-    const groups: { pair: CommissionedImage[]; single?: CommissionedImage; rotate?: boolean }[] = []
-    let wi = 0
-    let vi = 0
-
-    // Vincolo: max 2 coppie di fila, poi una singola (wide o verticale)
-    const mulberry32 = (seed: number) => {
-      let t = seed >>> 0
-      return function () {
-        t += 0x6D2B79F5
-        let x = Math.imul(t ^ (t >>> 15), t | 1)
-        x ^= x + Math.imul(x ^ (x >>> 7), x | 61)
-        return ((x ^ (x >>> 14)) >>> 0) / 4294967296
-      }
-    }
-    const rand = mulberry32(Date.now())
-
-    // Shuffle verticali per dinamica
-    const shuffledVerticals = verticalImages.slice()
-    for (let i = shuffledVerticals.length - 1; i > 0; i--) {
-      const j = Math.floor(rand() * (i + 1))
-      ;[shuffledVerticals[i], shuffledVerticals[j]] = [shuffledVerticals[j], shuffledVerticals[i]]
-    }
-
-    let viIdx = 0
-    let wiIdx = 0
-    let pairStreak = 0
-
-    while (viIdx < shuffledVerticals.length || wiIdx < wideImages.length) {
-      if (pairStreak < 2 && viIdx + 1 < shuffledVerticals.length) {
-        groups.push({ pair: [shuffledVerticals[viIdx], shuffledVerticals[viIdx + 1]], single: undefined })
-        viIdx += 2
-        pairStreak += 1
-        continue
-      }
-
-      const canWide = wiIdx < wideImages.length
-      const canVertSingle = viIdx < shuffledVerticals.length
-      let useWide = false
-      if (canWide && canVertSingle) useWide = rand() < 0.5
-      else useWide = canWide && !canVertSingle
-
-      if (useWide && canWide) {
-        groups.push({ pair: [], single: wideImages[wiIdx++], rotate: false })
-      } else if (canVertSingle) {
-        const single = shuffledVerticals[viIdx++]
-        const shouldRotate = rand() < 0.25
-        groups.push({ pair: [], single, rotate: shouldRotate })
-      } else {
-        break
-      }
-      pairStreak = 0
-    }
-    return groups
-  }, [currentImages, wideMap])
 
   useEffect(() => {
     if (viewMode === 'reel' && reelRef.current) {
       const reel = reelRef.current
       let autoRaf = 0
 
+      // Track which subcategory is currently visible
+      const updateSubcategory = () => {
+        const reelRect = reel.getBoundingClientRect()
+        const centerX = reelRect.left + reelRect.width / 2
+        const items = reel.querySelectorAll('.work-reel-item')
+        let found = ''
+        items.forEach((item) => {
+          const rect = item.getBoundingClientRect()
+          if (rect.left <= centerX && rect.right >= centerX) {
+            found = (item as HTMLElement).dataset.subcategory || ''
+          }
+        })
+        if (found && found !== currentSubcategory) {
+          setSubcategoryOpacity(0)
+          setTimeout(() => {
+            setCurrentSubcategory(found)
+            setSubcategoryOpacity(1)
+          }, 150)
+        } else if (found && found === currentSubcategory) {
+          setSubcategoryOpacity(1)
+        }
+      }
+
       // Wheel: traduce scroll verticale in orizzontale
       const onWheel = (e: WheelEvent) => {
         e.preventDefault()
-        // Usa deltaY per scroll orizzontale (scroll su/giù = scroll dx/sx)
         reel.scrollLeft += e.deltaY + e.deltaX
       }
 
@@ -252,17 +201,18 @@ function CommissionedContent() {
         } else if (reel.scrollLeft <= 0) {
           reel.scrollLeft += half
         }
+        updateSubcategory()
       }
-      
+
       // Touch: swipe verticale = scroll orizzontale
       let touchStartY = 0
       let touchStartX = 0
-      
+
       const onTouchStart = (e: TouchEvent) => {
         touchStartY = e.touches[0].clientY
         touchStartX = e.touches[0].clientX
       }
-      
+
       const onTouchMove = (e: TouchEvent) => {
         e.preventDefault()
         const deltaY = touchStartY - e.touches[0].clientY
@@ -276,9 +226,10 @@ function CommissionedContent() {
       reel.addEventListener('scroll', onScroll)
       reel.addEventListener('touchstart', onTouchStart, { passive: true })
       reel.addEventListener('touchmove', onTouchMove, { passive: false })
-      
+
       requestAnimationFrame(() => {
         reel.scrollLeft = reel.scrollWidth / 4
+        updateSubcategory()
       })
       const tick = () => {
         reel.scrollLeft += 0.35
@@ -295,82 +246,52 @@ function CommissionedContent() {
       }
     }
 
-    if (viewMode === 'stack' && stackScrollRef.current) {
-      const scroller = stackScrollRef.current
-      let autoRaf = 0
-      
-      const onScroll = () => {
-        const half = scroller.scrollHeight / 2
-        if (scroller.scrollTop >= half) {
-          scroller.scrollTop -= half
-        } else if (scroller.scrollTop <= 1) {
-          scroller.scrollTop += half
-        }
-      }
-
-      scroller.addEventListener('scroll', onScroll)
-      requestAnimationFrame(() => {
-        scroller.scrollTop = scroller.scrollHeight / 4
-      })
-      
-      // Auto-scroll fluido (funziona anche su mobile)
-      const tick = () => {
-        scroller.scrollTop += 0.35
-        autoRaf = requestAnimationFrame(tick)
-      }
-      autoRaf = requestAnimationFrame(tick)
-
-      return () => {
-        scroller.removeEventListener('scroll', onScroll)
-        if (autoRaf) cancelAnimationFrame(autoRaf)
-      }
-    }
     return undefined
-  }, [viewMode])
+  }, [viewMode, currentSubcategory])
 
   // Smooth scroll + marquee: LOOP e TRANSLATE insieme con inerzia
   useEffect(() => {
     if (viewMode !== 'grid') return
-    
+
     const slider = sliderRef.current
     if (!slider) return
-    
+
     const trackA = slider.querySelector('.works-marquee-span-a') as HTMLElement
     const trackB = slider.querySelector('.works-marquee-span-b') as HTMLElement
     const trackC = slider.querySelector('.works-marquee-span-c') as HTMLElement
     if (!trackA || !trackB || !trackC) return
-    
+
     let rafId = 0
     let initTimeout: NodeJS.Timeout
-    
+
     // Misura la larghezza reale di uno span dal DOM
     const measureSpanWidth = () => {
       return trackA.scrollWidth || trackA.offsetWidth || marqueeImages.length * 60
     }
-    
+
     // Delay iniziale per permettere al DOM di essere pronto dopo navigazione
     initTimeout = setTimeout(() => {
       const SPAN_WIDTH = measureSpanWidth()
       const viewportWidth = window.innerWidth
-      
+
       // Calcola THUMB_WIDTH reale dalla misurazione (escludendo padding del container)
       const trackStyles = getComputedStyle(trackA)
       const paddingLeft = parseFloat(trackStyles.paddingLeft || '0')
       const paddingX = paddingLeft + parseFloat(trackStyles.paddingRight || '0')
       const THUMB_WIDTH = (SPAN_WIDTH - paddingX) / marqueeImages.length
-      
+
       const SCROLL_MULTIPLIER = 0.5
       const MIN_VELOCITY = 0.1
-      
+
       // Calcola offset iniziale per centrare la PRIMA immagine
       // La prima immagine deve essere al centro del viewport
       const initialOffset = viewportWidth / 2 - (paddingLeft + THUMB_WIDTH / 2)
-      
+
       // Stato scroll con inerzia - partendo da offset per centrare img 1
       let targetScroll = -initialOffset / SCROLL_MULTIPLIER
       let currentScroll = targetScroll
       let velocity = 0
-      
+
       // Calcola quale immagine è al CENTRO del viewport
       const getCenterImageIndex = (loopedPosition: number) => {
         const viewportCenter = viewportWidth / 2
@@ -390,24 +311,24 @@ function CommissionedContent() {
       const updateMarqueePosition = () => {
         const diff = targetScroll - currentScroll
         velocity = diff * 0.1
-        
+
         if (Math.abs(velocity) > MIN_VELOCITY) {
           currentScroll += velocity
         } else {
           currentScroll = targetScroll
         }
-        
+
         const rawPosition = -currentScroll * SCROLL_MULTIPLIER
         const loopedPosition = ((rawPosition % SPAN_WIDTH) + SPAN_WIDTH) % SPAN_WIDTH // 0..SPAN_WIDTH
-        
+
         trackA.style.transform = `translateX(${loopedPosition}px)`
         trackB.style.transform = `translateX(${loopedPosition - SPAN_WIDTH}px)`
         trackC.style.transform = `translateX(${loopedPosition + SPAN_WIDTH}px)`
-        
+
         const centerIndex = getCenterImageIndex(loopedPosition)
         setHeroIndex(centerIndex)
       }
-      
+
       const tick = () => {
         updateMarqueePosition()
         rafId = requestAnimationFrame(tick)
@@ -416,20 +337,20 @@ function CommissionedContent() {
       // Prima sincronizzazione per mostrare subito la foto 1
       syncNow()
       setHeroIndex(0)
-      
+
       // Rendi subito visibili tutte le thumbnail
       const allThumbs = slider.querySelectorAll('.works-marquee-thumb')
       allThumbs.forEach((thumb) => {
         thumb.classList.add('is-visible')
       })
-      
+
       // Wheel handler
       const onWheel = (e: WheelEvent) => {
         e.preventDefault()
         const delta = e.deltaY || e.deltaX
         targetScroll += delta * 0.5
       }
-      
+
       // Click globale
       const onClick = (e: MouseEvent) => {
         const target = e.target as HTMLElement
@@ -440,30 +361,30 @@ function CommissionedContent() {
         targetScroll += THUMB_WIDTH / SCROLL_MULTIPLIER
         syncNow()
       }
-      
+
       // Touch handlers
       let touchStartY = 0
-      
+
       const onTouchStart = (e: TouchEvent) => {
         touchStartY = e.touches[0].clientY
       }
-      
+
       const onTouchMove = (e: TouchEvent) => {
         const deltaY = touchStartY - e.touches[0].clientY
         touchStartY = e.touches[0].clientY
         targetScroll += deltaY * 0.5
       }
-      
+
       const onTouchEnd = () => {}
-      
+
       window.addEventListener('wheel', onWheel, { passive: false })
       window.addEventListener('click', onClick)
       window.addEventListener('touchstart', onTouchStart, { passive: true })
       window.addEventListener('touchmove', onTouchMove, { passive: false })
       window.addEventListener('touchend', onTouchEnd, { passive: true })
-      
+
       rafId = requestAnimationFrame(tick)
-      
+
       // Store cleanup functions
       ;(slider as any)._cleanupMarquee = () => {
         allThumbs.forEach((thumb) => {
@@ -477,7 +398,7 @@ function CommissionedContent() {
         cancelAnimationFrame(rafId)
       }
     }, 50) // 50ms delay per permettere al DOM di stabilizzarsi
-    
+
     // Blocca scroll verticale nativo
     const preventScroll = (e: TouchEvent) => {
       e.preventDefault()
@@ -485,7 +406,7 @@ function CommissionedContent() {
     document.body.style.overflow = 'hidden'
     document.documentElement.style.overflow = 'hidden'
     document.addEventListener('touchmove', preventScroll, { passive: false })
-    
+
     return () => {
       clearTimeout(initTimeout)
       if ((slider as any)._cleanupMarquee) {
@@ -501,53 +422,47 @@ function CommissionedContent() {
     setHeroIndex((prev) => (prev + 1) % Math.max(1, currentImages.length))
   }
 
-  const handleAspectRecord = useCallback((src: string, width: number, height: number) => {
-    const isWide = width > height
-    setWideMap((prev) => (prev[src] === isWide ? prev : { ...prev, [src]: isWide }))
-
-    if (!isWide) {
-      setRotateMap((prev) => {
-        if (prev[src] !== undefined) return prev
-        const shouldRotate = Math.random() < 0.08
-        return shouldRotate ? { ...prev, [src]: true } : prev
-      })
-    }
-  }, [])
-
   return (
     <>
-      <main className={`w-full h-screen ${viewMode === 'reel' ? 'is-reel' : viewMode === 'stack' ? 'is-stack' : 'is-grid'} bg-white text-[#111]`}>
-        {/* Loading state */}
-        {isLoadingPhotos && (
+      <main className={`w-full h-screen ${viewMode === 'reel' ? 'is-reel' : 'is-grid'} bg-white text-[#111]`}>
+        {/* Loading / empty: spinner iOS */}
+        {(isLoadingPhotos || currentImages.length === 0) && (
           <div className="w-full h-full flex items-center justify-center bg-white">
-            <div className="text-center">
-              <div className="text-sm text-gray-500 mb-4">Caricamento fotografie...</div>
-              <div className="inline-block w-8 h-8 border-2 border-gray-200 border-t-gray-800 rounded-full animate-spin" />
+            <div className="ios-spinner">
+              {Array.from({ length: 8 }).map((_, i) => (
+                <div key={i} className="ios-spinner-blade" />
+              ))}
             </div>
           </div>
         )}
-        
-        {/* No photos state */}
-        {!isLoadingPhotos && currentImages.length === 0 && (
-          <div className="w-full h-full flex items-center justify-center bg-white">
-            <div className="text-center text-gray-500">
-              <p className="text-sm">Nessuna fotografia disponibile</p>
-            </div>
-          </div>
-        )}
-        
+
         {/* Main content - only render when photos are loaded */}
         {currentImages.length > 0 && (
         <>
         {/* Caption - visible in all views, same baseline as counter */}
         {currentImages[heroIndex]?.caption && (
-          <div className={`fixed left-[1em] z-[90] text-xs pointer-events-none transition-all duration-300 ease-out line-clamp-1 ${viewMode === 'grid' ? 'bottom-[6em]' : 'bottom-[1em]'}`}>
+          <div className={`work-caption fixed left-[1em] z-[90] text-xs pointer-events-none transition-all duration-300 ease-out line-clamp-1 hidden md:block ${viewMode === 'grid' ? 'bottom-[calc(6em+5%)]' : 'bottom-[calc(1em+5%)]'}`}>
             {currentImages[heroIndex]!.caption}
           </div>
         )}
 
+        {/* Subcategory label - visible only in reel view */}
+        {viewMode === 'reel' && currentSubcategory && (
+          <div
+            className="fixed left-[1em] top-1/2 -translate-y-1/2 z-[90] text-xs pointer-events-none"
+            style={{
+              mixBlendMode: 'difference',
+              color: '#fff',
+              opacity: subcategoryOpacity,
+              transition: 'opacity 0.3s ease-out',
+            }}
+          >
+            {currentSubcategory}
+          </div>
+        )}
+
         {/* View Switcher - moves up in grid to avoid marquee */}
-        <div className={`fixed right-[1em] z-[100] flex items-center gap-4 text-xs nav-menu work-view-toggle transition-all duration-300 ease-out ${viewMode === 'grid' ? 'bottom-[6em]' : 'bottom-[1em]'}`}>
+        <div className={`fixed right-[1em] z-[100] flex items-center gap-4 text-xs nav-menu work-view-toggle transition-all duration-300 ease-out ${viewMode === 'grid' ? 'bottom-[calc(6em+5%)]' : 'bottom-[calc(1em+5%)]'}`}>
           <span className="pointer-events-none work-photo-counter">{photoCounter}</span>
           <button
             type="button"
@@ -557,11 +472,11 @@ function CommissionedContent() {
               // Blocca clic multipli durante transizione
               if (isTransitioning) return
               setIsTransitioning(true)
-              
+
               const nextMode: ViewMode =
-                viewMode === 'grid' ? 'stack' : viewMode === 'stack' ? 'reel' : 'grid'
+                viewMode === 'grid' ? 'reel' : 'grid'
               setTransitionPhase('out')
-              
+
               // Delay ottimizzato per browser mobili - minimizza il flashing
               const transitionDuration = /iPhone|iPad|Android/.test(navigator.userAgent) ? 240 : 280
               window.setTimeout(() => {
@@ -589,12 +504,6 @@ function CommissionedContent() {
                 <rect x="1" y="9" width="6" height="6" stroke="currentColor" fill="none" strokeWidth="1" />
                 <rect x="9" y="9" width="6" height="6" stroke="currentColor" fill="none" strokeWidth="1" />
               </svg>
-            ) : viewMode === 'stack' ? (
-              <svg className="work-view-toggle-icon" width="16" height="16" viewBox="0 0 16 16">
-                <rect x="1" y="1" width="6" height="6" stroke="currentColor" fill="none" strokeWidth="1" />
-                <rect x="9" y="1" width="6" height="6" stroke="currentColor" fill="none" strokeWidth="1" />
-                <rect x="1" y="9" width="14" height="6" stroke="currentColor" fill="none" strokeWidth="1" />
-              </svg>
             ) : (
               <svg className="work-view-toggle-icon" width="16" height="16" viewBox="0 0 16 16">
                 <rect x="1" y="3" width="14" height="4" stroke="currentColor" fill="none" strokeWidth="1" />
@@ -609,7 +518,7 @@ function CommissionedContent() {
             /* GRID VIEW - Photo + Marquee */
             <div className={`works-grid-view ${isLoaded ? 'is-loaded' : ''} ${transitionPhase === 'out' ? 'view-fade-out' : ''} ${transitionPhase === 'in' ? 'view-fade-in' : ''}`}>
               <div className="works-top-overlay" />
-              
+
               {/* Central Photo - semplice crossfade */}
               <div className="works-grid-photo">
                 {currentImages.length > 0 && (
@@ -625,7 +534,7 @@ function CommissionedContent() {
               <div ref={sliderRef} className="works-grid-marquee">
                 {/* Overlay gradiente bianco */}
                 <div className="works-marquee-overlay" />
-                
+
                 {/* Span A - contiene N ripetizioni di tutte le immagini */}
                 <div className="works-marquee-span works-marquee-span-a">
                   {marqueeImages.map((img, idx) => (
@@ -637,7 +546,7 @@ function CommissionedContent() {
                     </div>
                   ))}
                 </div>
-                
+
                 {/* Span B (duplicato per loop infinito) */}
                 <div className="works-marquee-span works-marquee-span-b">
                   {marqueeImages.map((img, idx) => (
@@ -649,7 +558,7 @@ function CommissionedContent() {
                     </div>
                   ))}
                 </div>
-                
+
                 {/* Span C (terzo duplicato per continuità totale) */}
                 <div className="works-marquee-span works-marquee-span-c">
                   {marqueeImages.map((img, idx) => (
@@ -663,108 +572,11 @@ function CommissionedContent() {
                 </div>
               </div>
             </div>
-          ) : viewMode === 'stack' ? (
-          <div ref={stackScrollRef} className={`work-stack-scroll ${transitionPhase === 'out' ? 'view-fade-out' : ''} ${transitionPhase === 'in' ? 'view-fade-in' : ''}`}>
-            <div className="work-stack">
-              {stackGroups.map((group, groupIndex) => (
-                <section key={groupIndex} className="work-stack-section">
-                  {group.pair.length > 0 && (
-                    <div className="work-stack-pair">
-                      {group.pair.map((img, imgIndex) => (
-                        <div
-                          key={`${groupIndex}-${imgIndex}`}
-                          className="work-stack-item"
-                          style={{
-                            animationDelay: `${(groupIndex * 3 + imgIndex) * 40}ms`,
-                          }}
-                        >
-                          <img className="work-stack-pair-img" src={img.src} alt="" />
-                        </div>
-                      ))}
-                    </div>
-                  )}
-                  {group.single && (
-                    <div
-                      className={
-                        (wideMap[group.single.src] || rotateMap[group.single.src]
-                          ? "work-stack-full work-stack-full--bleed"
-                          : "work-stack-full work-stack-full--centered")
-                      }
-                      style={{
-                        animationDelay: `${(groupIndex * 3 + 2) * 40}ms`,
-                      }}
-                    >
-                      <img
-                        src={group.single.src}
-                        alt=""
-                        className={`work-stack-full-img ${rotateMap[group.single.src] ? "work-stack-rotate" : ""}`}
-                        onLoad={(e) =>
-                          handleAspectRecord(
-                            group.single!.src,
-                            e.currentTarget.naturalWidth,
-                            e.currentTarget.naturalHeight
-                          )
-                        }
-                      />
-                    </div>
-                  )}
-                </section>
-              ))}
-            </div>
-            <div className="work-stack work-stack--clone" aria-hidden="true">
-              {stackGroups.map((group, groupIndex) => (
-                <section key={`clone-${groupIndex}`} className="work-stack-section">
-                  {group.pair.length > 0 && (
-                    <div className="work-stack-pair">
-                      {group.pair.map((img, imgIndex) => (
-                        <div
-                          key={`clone-${groupIndex}-${imgIndex}`}
-                          className="work-stack-item"
-                          style={{
-                            animationDelay: `${(groupIndex * 3 + imgIndex) * 40}ms`,
-                          }}
-                        >
-                          <img className="work-stack-pair-img" src={img.src} alt="" />
-                        </div>
-                      ))}
-                    </div>
-                  )}
-                  {group.single && (
-                    <div
-                      className={
-                        wideMap[group.single.src]
-                          ? "work-stack-full work-stack-full--bleed"
-                          : group.rotate
-                            ? "work-stack-full work-stack-full--rotated"
-                            : "work-stack-full work-stack-full--centered"
-                      }
-                      style={{
-                        animationDelay: `${(groupIndex * 3 + 2) * 40}ms`,
-                      }}
-                    >
-                      <img
-                        src={group.single.src}
-                        alt=""
-                        className="work-stack-full-img"
-                        onLoad={(e) =>
-                          handleAspectRecord(
-                            group.single!.src,
-                            e.currentTarget.naturalWidth,
-                            e.currentTarget.naturalHeight
-                          )
-                        }
-                      />
-                    </div>
-                  )}
-                </section>
-              ))}
-            </div>
-          </div>
-        ) : (
+          ) : (
           <div ref={reelRef} className={`work-reel ${transitionPhase === 'out' ? 'view-fade-out' : ''} ${transitionPhase === 'in' ? 'view-fade-in' : ''}`}>
             <div className="work-reel-track">
               {reelImages.map((img, idx) => (
-                <div key={idx} className="work-reel-item">
+                <div key={idx} className="work-reel-item" data-subcategory={img.subcategory || ''}>
                   <img
                     className="work-reel-img"
                     src={img.src}

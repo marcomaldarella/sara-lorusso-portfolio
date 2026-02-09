@@ -1,9 +1,48 @@
 
+/* ==========================================================================
+   iOS-style spinner
+   ========================================================================== */
+
+.ios-spinner {
+  position: relative;
+  width: 20px;
+  height: 20px;
+  animation: ios-spinner-rotate 1s steps(8) infinite;
+}
+
+.ios-spinner-blade {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  width: 2px;
+  height: 6px;
+  margin-left: -1px;
+  margin-top: -9px;
+  border-radius: 1px;
+  background: rgba(0, 0, 0, 0.4);
+  transform-origin: center 9px;
+}
+
+.ios-spinner-blade:nth-child(1) { transform: rotate(0deg);   opacity: 1; }
+.ios-spinner-blade:nth-child(2) { transform: rotate(45deg);  opacity: 0.875; }
+.ios-spinner-blade:nth-child(3) { transform: rotate(90deg);  opacity: 0.75; }
+.ios-spinner-blade:nth-child(4) { transform: rotate(135deg); opacity: 0.625; }
+.ios-spinner-blade:nth-child(5) { transform: rotate(180deg); opacity: 0.5; }
+.ios-spinner-blade:nth-child(6) { transform: rotate(225deg); opacity: 0.375; }
+.ios-spinner-blade:nth-child(7) { transform: rotate(270deg); opacity: 0.25; }
+.ios-spinner-blade:nth-child(8) { transform: rotate(315deg); opacity: 0.125; }
+
+@keyframes ios-spinner-rotate {
+  from { transform: rotate(0deg); }
+  to   { transform: rotate(360deg); }
+}
+
 .is-reel,
 .is-reel * {
   color: #fff !important;
 }
 
+.is-reel .nav-name,
 .is-reel .nav-menu,
 .is-reel .work-view-toggle,
 .is-reel .work-photo-counter,
@@ -17,10 +56,12 @@
 }
 
 /* Global: difference blend for nav + switch across views */
+.nav-name,
 .nav-menu,
 .work-view-toggle,
 .work-photo-counter,
-.work-view-toggle-icon {
+.work-view-toggle-icon,
+.work-caption {
   mix-blend-mode: difference;
   color: #fff;
 }
@@ -198,11 +239,11 @@
 }
 
 @layer base {
-  * {
+  body:not(.studio) * {
     @apply border-border outline-ring/50;
   }
 
-  body {
+  body:not(.studio) {
     @apply bg-background text-foreground;
   }
 }
@@ -257,7 +298,7 @@
 }
 
 @media (prefers-reduced-motion: reduce) {
-  :where(h1, h2, h3, h4, h5, h6, p, li, a, span, small, label, figcaption, blockquote) {
+  body:not(.studio) :where(h1, h2, h3, h4, h5, h6, p, li, a, span, small, label, figcaption, blockquote) {
     animation: none !important;
   }
 }
@@ -268,7 +309,7 @@
   opacity: 1 !important;
 }
 
-:where(h1, h2, h3, h4, h5, h6, p, li, a, span, small, label, figcaption, blockquote) {
+body:not(.studio) :where(h1, h2, h3, h4, h5, h6, p, li, a, span, small, label, figcaption, blockquote) {
   animation: text-entrance var(--text-enter-duration) var(--text-enter-ease) both;
   transform-origin: left bottom;
   will-change: transform, opacity;
@@ -323,14 +364,14 @@ body,
   height: 100%;
 }
 
-* {
+body:not(.studio) * {
   font-family: 'Messina Sans', system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
   font-weight: 400;
   margin: 0;
   padding: 0;
 }
 
-body {
+body:not(.studio) {
   font-size: 12px;
   font-weight: 400;
   line-height: 1.6;
@@ -373,7 +414,7 @@ main {
 }
 
 /* Trail item styling (moved from landing) */
-.item {
+.trail-hero .item {
   position: absolute;
   width: 150px;
   height: 200px;
@@ -385,7 +426,7 @@ main {
   transition: opacity 0.5s cubic-bezier(.4, .2, .2, 1);
 }
 
-.item img {
+.trail-hero .item img {
   width: 100%;
   height: 100%;
   object-fit: cover;
@@ -658,30 +699,6 @@ main {
   will-change: transform;
 }
 
-.work-stack-scroll {
-  height: 100vh;
-  height: 100dvh;
-  height: 100svh;
-  overflow-y: scroll;
-  overflow-x: hidden;
-  scrollbar-width: none;
-  -ms-overflow-style: none;
-  overscroll-behavior: contain;
-  -webkit-overflow-scrolling: touch;
-  /* Scroll fluido iOS */
-  touch-action: pan-y;
-  -webkit-user-select: none;
-  user-select: none;
-  -webkit-tap-highlight-color: transparent;
-  -webkit-touch-callout: none;
-  /* Previene el bounce excesivo su Safari iOS */
-  position: relative;
-  will-change: transform;
-}
-
-.work-stack-scroll::-webkit-scrollbar {
-  display: none;
-}
 
 @media (max-width: 700px) {
   .work-hero-photo {
@@ -725,7 +742,6 @@ main {
 
 /* View transitions - fade fluido tra view modes (cross-browser) */
 .works-grid-view,
-.work-stack-scroll,
 .work-reel {
   -webkit-transition: opacity 0.22s ease-out, -webkit-filter 0.22s ease-out, -webkit-transform 0.22s ease-out, filter 0.22s ease-out, transform 0.22s ease-out;
   transition: opacity 0.22s ease-out, filter 0.22s ease-out, transform 0.22s ease-out;
@@ -1072,110 +1088,6 @@ body.home-sequence {
   /* Deprecato */
 }
 
-/* Stacking visivo - carte più lontane sono leggermente più piccole e sfocate */
-.work-stack-card:not(.is-active) {
-  filter: blur(0.5px);
-}
-
-.work-stack-card:nth-child(n+4):not(.is-active) {
-  filter: blur(1px);
-  opacity: 0.95;
-}
-
-.work-stack-card:nth-child(n+7):not(.is-active) {
-  filter: blur(1.5px);
-  opacity: 0.9;
-}
-
-.work-stack {
-  display: flex;
-  flex-direction: column;
-  gap: 1em;
-  padding: 1em;
-  min-height: 100svh;
-  overflow-x: hidden;
-}
-
-.work-stack-section {
-  display: flex;
-  flex-direction: column;
-  gap: 1em;
-}
-
-.work-stack-pair {
-  display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 1em;
-  place-items: center;
-}
-
-.work-stack-item {
-  width: 100%;
-  aspect-ratio: 3 / 4;
-  background-size: contain;
-  background-position: center;
-  background-repeat: no-repeat;
-  animation: fade-in-up 0.8s ease both;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-}
-
-/* Immagine interna per le coppie verticali: dimensioni naturali, nessun crop */
-.work-stack-item img,
-.work-stack-pair-img {
-  height: 100%;
-  width: auto;
-  max-width: 100%;
-  object-fit: contain;
-  display: block;
-  user-select: none;
-  -webkit-user-drag: none;
-}
-
-.work-stack-full {
-  width: 100vw;
-  margin-left: calc(-50vw + 50%);
-  animation: fade-in-up 0.9s ease both;
-  overflow: visible;
-  /* evita tagli su immagini ruotate */
-}
-
-.work-stack-full--bleed {
-  height: 100svh;
-  width: 100vw;
-  display: flex;
-  justify-content: center;
-  align-items: center;
-}
-
-.work-stack-full--centered {
-  display: flex;
-  justify-content: center;
-  align-items: center;
-  height: 100svh;
-}
-
-.work-stack-full-img {
-  width: 100%;
-  height: auto;
-  display: block;
-}
-
-.work-stack-full--bleed .work-stack-full-img {
-  width: auto;
-  height: 100svh;
-  object-fit: contain;
-  max-width: 100vw;
-  max-height: none;
-  /* Altezza fissa 100vh, larghezza proporzionale senza taglio */
-}
-
-.work-stack-full--centered .work-stack-full-img {
-  width: auto;
-  height: 100svh;
-  max-width: 100%;
-}
 
 
 
@@ -1251,25 +1163,6 @@ body.home-sequence {
   margin-top: 48px;
 }
 
-/* Rotated full-bleed single: avoid clipping when rotated */
-.work-stack-full--rotated {
-  height: 100svh;
-  width: 100vw;
-  display: flex;
-  justify-content: center;
-  align-items: center;
-  overflow: visible;
-}
-
-.work-stack-full--rotated .work-stack-full-img {
-  width: auto;
-  height: 100svh;
-  max-width: 100vw;
-  max-height: none;
-  transform: rotate(90deg);
-  transform-origin: center center;
-  object-fit: contain;
-}
 
 .editorial-services-block,
 .editorial-bio-block,
@@ -1607,24 +1500,10 @@ img {
 }
 
 .grid-item-img,
-.work-reel-img,
-.work-stack-item {
+.work-reel-img {
   background-size: cover;
   background-position: center;
   background-repeat: no-repeat;
-}
-
-.work-stack-full-img {
-  width: 100%;
-  height: auto;
-  object-fit: contain;
-}
-
-.work-stack-full--centered .work-stack-full-img {
-  height: 100svh !important;
-  width: auto !important;
-  max-width: 100% !important;
-  object-fit: contain !important;
 }
 
 .work-view-toggle {
@@ -1977,20 +1856,6 @@ img {
     bottom: 12px;
     padding: 8px 12px;
     width: calc(100% - 24px);
-  /* Stack view: coppie impilate e immagini a dimensione naturale */
-  .work-stack-pair {
-    grid-template-columns: 1fr;
-  }
-  .work-stack-item {
-    aspect-ratio: auto;
-  }
-  .work-stack-pair-img {
-    width: auto;
-    height: auto;
-    max-width: 92vw;
-    max-height: 88svh;
-    object-fit: contain;
-  }
   }
 
   .cookie-banner-inner {
@@ -2565,10 +2430,6 @@ body::-webkit-scrollbar {
   :root {
     --trail-size: 170px;
   }
-  /* Stack: aggiungi padding sotto per evitare sovrapposizione col toggle */
-  .is-stack .work-stack-scroll {
-    padding-bottom: calc(env(safe-area-inset-bottom) + 4.5em);
-  }
 }
 
 @media (max-width: 640px) {
@@ -2652,8 +2513,9 @@ body::-webkit-scrollbar {
 .trail-title {
   font-size: clamp(48px, 12vw, 128px);
   font-weight: 400;
-  line-height: 0.85;
-  letter-spacing: var(--trail-kerning, -0.08em);
+  line-height: 0.74;
+  /* più compatto */
+  letter-spacing: var(--trail-kerning, -0.12em);
   /* kerning stretto e animabile */
   color: #000;
   margin: 0;
@@ -2666,8 +2528,7 @@ body::-webkit-scrollbar {
 
 @media (max-width: 640px) {
   .trail-title {
-    font-size: clamp(32px, 10vw, 128px);
-    letter-spacing: var(--trail-kerning, -0.06em);
+    font-size: clamp(36px, 11vw, 128px);
   }
 }
 
@@ -2716,15 +2577,15 @@ body::-webkit-scrollbar {
 
 @keyframes trail-kerning {
   0% {
-    letter-spacing: -0.085em;
+    letter-spacing: -0.125em;
   }
 
   50% {
-    letter-spacing: -0.08em;
+    letter-spacing: -0.12em;
   }
 
   100% {
-    letter-spacing: -0.085em;
+    letter-spacing: -0.125em;
   }
 
   /* solo stringere, loop senza scatti */
