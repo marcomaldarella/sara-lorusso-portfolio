@@ -19,9 +19,7 @@ export async function fetchPhotosByCategory(
   category: 'personal' | 'commissioned'
 ): Promise<PhotoImage[]> {
   try {
-    const orderClause = category === 'personal'
-      ? 'order(orderRank asc)'
-      : 'order(subcategory asc, _createdAt desc)'
+    const orderClause = 'order(orderRank asc)'
     
     console.log(`[fetch-photos] Fetching ${category} photos...`)
     

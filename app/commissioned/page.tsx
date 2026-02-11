@@ -64,19 +64,6 @@ function CommissionedContent() {
     return [...inCat, ...outCat]
   }, [selectedCategory, allImages])
 
-  // Images sorted by subcategory for reel view
-  const reelSortedImages = useMemo(() => {
-    const sorted = [...currentImages]
-    sorted.sort((a, b) => {
-      const subA = a.subcategory || ''
-      const subB = b.subcategory || ''
-      if (subA < subB) return -1
-      if (subA > subB) return 1
-      return 0 // maintain original order within same subcategory
-    })
-    return sorted
-  }, [currentImages])
-
   // Fetch immagini da Sanity al mount
   useEffect(() => {
     const loadPhotos = async () => {
@@ -108,7 +95,7 @@ function CommissionedContent() {
   const sliderRef = useRef<HTMLDivElement>(null)
   const totalPhotos = currentImages.length
   const photoCounter = `${formatCounter(heroIndex + 1)}/${formatCounter(totalPhotos)}`
-  const reelImages = useMemo(() => (reelSortedImages.length > 0 ? [...reelSortedImages, ...reelSortedImages] : []), [reelSortedImages])
+  const reelImages = useMemo(() => (currentImages.length > 0 ? [...currentImages, ...currentImages] : []), [currentImages])
 
   // Array ripetuto per marquee - garantisce copertura completa viewport
   const marqueeImages = useMemo(() => {

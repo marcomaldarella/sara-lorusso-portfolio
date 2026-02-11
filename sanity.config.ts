@@ -19,7 +19,7 @@ export default defineConfig({
         S.list()
           .title('Content')
           .items([
-            // Solo PERSONAL con lista ordinabile (drag & drop)
+            // Personal con lista ordinabile (drag & drop)
             orderableDocumentListDeskItem({
               type: 'photo',
               title: 'Personal',
@@ -28,17 +28,15 @@ export default defineConfig({
               S,
               context,
             }),
-            // Commissioned come lista standard (senza drag)
-            S.listItem()
-              .id('commissioned')
-              .title('Commissioned')
-              .schemaType('photo')
-              .child(
-                S.documentList()
-                  .id('commissioned-photos')
-                  .title('Commissioned Photos')
-                  .filter('_type == "photo" && category == "commissioned"')
-              ),
+            // Commissioned con lista ordinabile (drag & drop)
+            orderableDocumentListDeskItem({
+              type: 'photo',
+              title: 'Commissioned',
+              id: 'commissioned-photos',
+              filter: 'category == "commissioned"',
+              S,
+              context,
+            }),
             S.divider(),
             S.documentTypeListItem('photo').title('All Photos')
           ])
