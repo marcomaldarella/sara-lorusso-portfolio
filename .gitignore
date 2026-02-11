@@ -48,3 +48,7 @@ app/new sources/
 public/lavori/
 work-patch.txt
 
+
+# Sanity local cache
+.sanity/
+tsconfig.tsbuildinfo
