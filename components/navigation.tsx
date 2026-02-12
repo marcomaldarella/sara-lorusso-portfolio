@@ -1,14 +1,20 @@
 "use client"
 
 import Link from "next/link"
+import { usePathname } from "next/navigation"
 
 type NavigationProps = {
   hideName?: boolean
 }
 
 export default function Navigation({ hideName = false }: NavigationProps) {
+  const pathname = usePathname()
+
+  const linkClass = (href: string) =>
+    `text-[#111] hover:opacity-60 transition lowercase text-xs nav-link${pathname === href ? ' nav-link-active' : ''}`
+
   return (
-    <nav className="fixed top-0 w-full z-50">
+    <nav className="fixed top-[0.5em] w-full z-50">
       <div className="w-full pl-[0.75em] pr-[1em] py-[0.75em] pt-[1.4em] flex items-start justify-between">
         <Link
           href="/"
@@ -23,6 +29,7 @@ export default function Navigation({ hideName = false }: NavigationProps) {
             paddingRight: "8px",
             fontSize: "14px",
             lineHeight: "1",
+            color: "#111",
             visibility: hideName ? "hidden" : "visible",
             pointerEvents: hideName ? "none" : "auto",
           }}
@@ -34,13 +41,13 @@ export default function Navigation({ hideName = false }: NavigationProps) {
         </Link>
 
         <div className="flex gap-6 nav-menu" style={{ marginRight: "1em" }}>
-          <Link href="/personal" className="text-[#111] hover:opacity-60 transition lowercase text-xs nav-link">
+          <Link href="/personal" className={linkClass("/personal")}>
             personal
           </Link>
-          <Link href="/commissioned" className="text-[#111] hover:opacity-60 transition lowercase text-xs nav-link">
+          <Link href="/commissioned" className={linkClass("/commissioned")}>
             commissioned
           </Link>
-          <Link href="/about" className="text-[#111] hover:opacity-60 transition lowercase text-xs nav-link">
+          <Link href="/about" className={linkClass("/about")}>
             about
           </Link>
           <a href="mailto:lorussosara1995@gmail.com" className="text-[#111] hover:opacity-60 transition lowercase text-xs nav-link">

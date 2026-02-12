@@ -413,13 +413,13 @@ export default function PersonalPage() {
         <>
         {/* Caption - visible in all views, same baseline as counter */}
         {images[heroIndex]?.caption && (
-          <div className={`work-caption fixed left-[1em] z-[90] text-xs pointer-events-none transition-all duration-300 ease-out line-clamp-1 hidden md:block ${viewMode === 'grid' ? 'bottom-[calc(6em+5%)]' : 'bottom-[calc(1em+5%)]'}`}>
+          <div className={`work-caption fixed left-[1em] z-[90] text-xs pointer-events-none transition-all duration-300 ease-out line-clamp-1 hidden md:block ${viewMode === 'grid' ? 'bottom-[calc(6em+2%)]' : 'bottom-[calc(1em+5%)]'}`}>
             {images[heroIndex]!.caption}
           </div>
         )}
 
         {/* View Switcher - moves up in grid to avoid marquee */}
-        <div className={`fixed right-[1em] z-[100] flex items-center gap-4 text-xs nav-menu work-view-toggle transition-all duration-300 ease-out ${viewMode === 'grid' ? 'bottom-[calc(6em+5%)]' : 'bottom-[calc(1em+5%)]'}`}>
+        <div className={`fixed right-[1em] z-[100] flex items-center gap-4 text-xs nav-menu work-view-toggle transition-all duration-300 ease-out ${viewMode === 'grid' ? 'bottom-[calc(6em+2%)]' : 'bottom-[calc(1em+5%)]'}`}>
           <span className="pointer-events-none work-photo-counter">{photoCounter}</span>
           <button
             type="button"

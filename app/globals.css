@@ -55,9 +55,7 @@
   stroke: currentColor !important;
 }
 
-/* Global: difference blend for nav + switch across views */
-.nav-name,
-.nav-menu,
+/* Global: difference blend for toggle/counter/caption across views */
 .work-view-toggle,
 .work-photo-counter,
 .work-view-toggle-icon,
@@ -378,15 +376,12 @@ body:not(.studio) {
   background: #fff;
 }
 
-h1,
-h2,
-h3,
-p {
+body:not(.studio) :is(h1, h2, h3, p) {
   font-weight: 400;
 }
 
 /* Page transition animation - previene flash bianchi */
-main {
+body:not(.studio) main {
   animation: page-fade-in 0.3s ease-out;
 }
 
@@ -498,6 +493,21 @@ main {
 .nav-menu * {
   font-family: 'Messina Sans', system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif !important;
   font-weight: 400;
+}
+
+.nav-link-active {
+  animation: nav-active-pulse 4s ease-in-out infinite;
+}
+
+@keyframes nav-active-pulse {
+  0%, 100% {
+    filter: blur(0.4px);
+    opacity: 0.65;
+  }
+  50% {
+    filter: blur(0.8px);
+    opacity: 0.5;
+  }
 }
 
 /* Navbar: mobile tweaks and stacked title */
@@ -1057,19 +1067,19 @@ main {
     cursor: default;
   }
 
+  /* Nav links: incrementa la dimensione del font di mezzo punto */
+  .nav-menu .nav-link {
+    font-size: 13px;
+  }
 
-/* Nav links: incrementa la dimensione del font di mezzo punto */
-.nav-menu .nav-link {
-  font-size: 13px;
-}
+  /* Home: blocca scroll su mobile per performance del trail */
+  html.home-sequence,
+  body.home-sequence {
+    overflow: hidden;
+    height: 100vh;
+    overscroll-behavior: contain;
+  }
 
-/* Home: blocca scroll su mobile per performance del trail */
-html.home-sequence,
-body.home-sequence {
-  overflow: hidden;
-  height: 100vh;
-  overscroll-behavior: contain;
-}
   .works-marquee-thumb {
     opacity: 0.5;
   }
@@ -2060,13 +2070,13 @@ img {
   filter: none;
 }
 
-html,
-body {
+html:not(:has(body.studio)),
+body:not(.studio) {
   scrollbar-width: none;
 }
 
-html::-webkit-scrollbar,
-body::-webkit-scrollbar {
+html:not(:has(body.studio))::-webkit-scrollbar,
+body:not(.studio)::-webkit-scrollbar {
   width: 0;
   height: 0;
 }
@@ -2528,7 +2538,12 @@ body::-webkit-scrollbar {
 
 @media (max-width: 640px) {
   .trail-title {
-    font-size: clamp(36px, 11vw, 128px);
+    font-size: clamp(40px, 15vw, 128px);
+    line-height: 0.78;
+  }
+
+  .trail-title-line {
+    white-space: nowrap;
   }
 }
 
@@ -2646,13 +2661,13 @@ body::-webkit-scrollbar {
 
 .trail-bottom {
   position: fixed;
-  left: 0;
-  right: 0;
+  left: 1em;
+  right: 1em;
   bottom: 14px;
-  padding: 0 18px;
+  padding: 0;
   display: flex;
   justify-content: space-between;
-  align-items: flex-start;
+  align-items: flex-end;
   font-size: 11px;
   letter-spacing: 0.02em;
   text-transform: none;
@@ -2667,6 +2682,10 @@ body::-webkit-scrollbar {
   text-align: left;
 }
 
+.trail-bottom-right {
+  text-align: right;
+}
+
 .trail-bottom-left {
   max-width: 320px;
   line-height: 1.3;
@@ -2675,7 +2694,8 @@ body::-webkit-scrollbar {
 @media (max-width: 640px) {
   .trail-bottom {
     font-size: 10px;
-    padding: 0 12px;
+    left: 1em;
+    right: 1em;
     bottom: 10px;
   }
 }
