@@ -4,6 +4,7 @@ import gsap from "gsap"
 import { useEffect, useRef, useState } from "react"
 import { useRouter } from "next/navigation"
 import { getPhotosForCanvas } from "@/lib/photos"
+import { fetchPhotosByCategory } from "@/lib/fetch-photos"
 
 type TrailPhoto = {
   url: string
@@ -80,6 +81,29 @@ export default function Home() {
   useEffect(() => {
     document.body.classList.add("home-sequence")
     return () => document.body.classList.remove("home-sequence")
+  }, [])
+
+  // Precarica foto personal + commissioned in background appena la home monta
+  useEffect(() => {
+    const preload = async () => {
+      try {
+        const [personal, commissioned] = await Promise.all([
+          fetchPhotosByCategory('personal'),
+          fetchPhotosByCategory('commissioned'),
+        ])
+        ;[...personal, ...commissioned].forEach((photo) => {
+          const img = new Image()
+          img.src = photo.src
+        })
+      } catch {
+        // silent fail
+      }
+    }
+    if ('requestIdleCallback' in window) {
+      (window as any).requestIdleCallback(preload, { timeout: 4000 })
+    } else {
+      setTimeout(preload, 2000)
+    }
   }, [])
 
   // Build title split animation (Sara first, then Lorusso)

@@ -115,24 +115,23 @@ export default function PersonalPage() {
     }
   }, [images.length])
 
-  // Preload TUTTE le immagini per evitare problemi su Safari
+  // Mostra UI appena la prima immagine è pronta, precarica il resto in background
   useEffect(() => {
     if (images.length === 0 || isLoadingPhotos) return
-    const preloadAll = async () => {
-      const imagePromises = images.map((img) => {
-        return new Promise((resolve) => {
-          const image = new Image()
-          image.onload = resolve
-          image.onerror = resolve
-          image.src = img.src
-        })
-      })
 
-      await Promise.all(imagePromises)
-      setTimeout(() => setIsLoaded(true), 100)
-    }
+    const fallback = setTimeout(() => setIsLoaded(true), 3000)
 
-    preloadAll()
+    const first = new Image()
+    first.onload = () => { setIsLoaded(true); clearTimeout(fallback) }
+    first.onerror = () => { setIsLoaded(true); clearTimeout(fallback) }
+    first.src = images[0].src
+
+    images.slice(1).forEach((img) => {
+      const image = new Image()
+      image.src = img.src
+    })
+
+    return () => clearTimeout(fallback)
   }, [images, isLoadingPhotos])
 
   useEffect(() => {
@@ -265,10 +264,9 @@ export default function PersonalPage() {
       // Calcola quale immagine è al CENTRO del viewport
       const getCenterImageIndex = (loopedPosition: number) => {
         const viewportCenter = viewportWidth / 2
-        const centerOffset = viewportCenter - (loopedPosition + paddingLeft)
-        // Usa rounding al thumb più vicino per evitare salti sul bordo
+        // Misura dal CENTRO dell'immagine (non dal bordo sinistro) per evitare off-by-one
+        const centerOffset = viewportCenter - (loopedPosition + paddingLeft + THUMB_WIDTH / 2)
         const thumbIndex = Math.round(centerOffset / THUMB_WIDTH)
-        // Sincronizza hero con marquee senza skip
         const idx = ((thumbIndex % images.length) + images.length) % images.length
         setHeroIndex(idx)
         return idx

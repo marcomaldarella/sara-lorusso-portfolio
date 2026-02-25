@@ -284,8 +284,8 @@ function CommissionedContent() {
       // Calcola quale immagine è al CENTRO del viewport
       const getCenterImageIndex = (loopedPosition: number) => {
         const viewportCenter = viewportWidth / 2
-        const centerOffset = viewportCenter - (loopedPosition + paddingLeft)
-        // Usa rounding al thumb più vicino per evitare salti sul bordo
+        // Misura dal CENTRO dell'immagine (non dal bordo sinistro) per evitare off-by-one
+        const centerOffset = viewportCenter - (loopedPosition + paddingLeft + THUMB_WIDTH / 2)
         const thumbIndex = Math.round(centerOffset / THUMB_WIDTH)
         const len = Math.max(1, currentImages.length)
         return ((thumbIndex % len) + len) % len
