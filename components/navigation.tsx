@@ -15,7 +15,7 @@ export default function Navigation({ hideName = false }: NavigationProps) {
 
   return (
     <nav className="fixed top-[0.5em] w-full z-50">
-      <div className="w-full pl-[0.75em] pr-[1em] py-[0.75em] pt-[1.4em] flex items-start justify-between">
+      <div className="w-full pl-[0.75em] pr-[1em] py-[0.75em] pt-[1.4em] flex items-baseline justify-between">
         <Link
           href="/"
           className="nav-name"
@@ -50,9 +50,7 @@ export default function Navigation({ hideName = false }: NavigationProps) {
           <Link href="/about" className={linkClass("/about")}>
             about
           </Link>
-          <a href="mailto:lorussosara1995@gmail.com" className="text-[#111] hover:opacity-60 transition lowercase text-xs nav-link">
-            contact
-          </a>
+
         </div>
       </div>
     </nav>

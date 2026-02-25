@@ -130,21 +130,23 @@ function CommissionedContent() {
   // Preload immagini + animazione iniziale
   useEffect(() => {
     if (currentImages.length === 0 || isLoadingPhotos) return
-    const preloadAll = async () => {
-      const imagePromises = currentImages.map((img) => {
-        return new Promise((resolve) => {
-          const image = new Image()
-          image.onload = resolve
-          image.onerror = resolve
-          image.src = img.src
-        })
-      })
 
-      await Promise.all(imagePromises)
-      setTimeout(() => setIsLoaded(true), 100)
-    }
+    // Fallback: forza isLoaded dopo 3s
+    const fallback = setTimeout(() => setIsLoaded(true), 3000)
 
-    preloadAll()
+    // Mostra subito appena la prima immagine è pronta
+    const first = new Image()
+    first.onload = () => { setIsLoaded(true); clearTimeout(fallback) }
+    first.onerror = () => { setIsLoaded(true); clearTimeout(fallback) }
+    first.src = currentImages[0].src
+
+    // Preload del resto in background
+    currentImages.slice(1).forEach((img) => {
+      const image = new Image()
+      image.src = img.src
+    })
+
+    return () => clearTimeout(fallback)
   }, [currentImages, isLoadingPhotos])
 
   useEffect(() => {
@@ -427,8 +429,8 @@ function CommissionedContent() {
         {currentImages.length > 0 && (
         <>
         {/* Caption - visible in all views, same baseline as counter */}
-        {currentImages[heroIndex]?.caption && (
-          <div className={`work-caption fixed left-[1em] z-[90] text-xs pointer-events-none transition-all duration-300 ease-out line-clamp-1 hidden md:block ${viewMode === 'grid' ? 'bottom-[calc(6em+2%)]' : 'bottom-[calc(1em+5%)]'}`}>
+        {isLoaded && currentImages[heroIndex]?.caption && (
+          <div className={`work-caption fixed left-[1em] z-[90] text-xs pointer-events-none transition-all duration-300 ease-out max-w-[45vw] md:max-w-[40vw] line-clamp-2 md:line-clamp-1 ${viewMode === 'grid' ? 'bottom-[calc(6em+2%)]' : 'bottom-[calc(1em+5%)]'}`}>
             {currentImages[heroIndex]!.caption}
           </div>
         )}
@@ -449,7 +451,7 @@ function CommissionedContent() {
         )}
 
         {/* View Switcher - moves up in grid to avoid marquee */}
-        <div className={`fixed right-[1em] z-[100] flex items-center gap-4 text-xs nav-menu work-view-toggle transition-all duration-300 ease-out ${viewMode === 'grid' ? 'bottom-[calc(6em+2%)]' : 'bottom-[calc(1em+5%)]'}`}>
+        {isLoaded && <div className={`fixed right-[1em] z-[100] flex items-end gap-4 text-xs nav-menu work-view-toggle transition-all duration-300 ease-out ${viewMode === 'grid' ? 'bottom-[calc(6em+2%)]' : 'bottom-[calc(1em+5%)]'}`}>
           <span className="pointer-events-none work-photo-counter">{photoCounter}</span>
           <button
             type="button"
@@ -498,7 +500,7 @@ function CommissionedContent() {
               </svg>
             )}
           </button>
-        </div>
+        </div>}
         {/* Main Content Container */}
         <div className="w-full h-full">
           {viewMode === 'grid' ? (
