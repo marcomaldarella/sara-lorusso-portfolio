@@ -1,5 +1,8 @@
 import { sanityFetch, urlFor } from './sanity'
 
+// In-memory cache: se la home ha già precaricato i dati, la navigazione è istantanea
+const cache = new Map<string, PhotoImage[]>()
+
 export type PhotoImage = {
   src: string
   span: number
@@ -18,9 +21,11 @@ export type PhotoImage = {
 export async function fetchPhotosByCategory(
   category: 'personal' | 'commissioned'
 ): Promise<PhotoImage[]> {
+  if (cache.has(category)) return cache.get(category)!
+
   try {
     const orderClause = 'order(orderRank asc)'
-    
+
     console.log(`[fetch-photos] Fetching ${category} photos...`)
     
     const query = `*[_type == "photo" && category == $category] | ${orderClause} {
@@ -52,7 +57,7 @@ export async function fetchPhotosByCategory(
     }
 
     // Trasforma risultati Sanity nel formato PhotoImage
-    return result.map((photo: any) => ({
+    const photos = result.map((photo: any) => ({
       _id: photo._id,
       title: photo.title || 'Untitled',
       caption: photo.caption,
@@ -66,6 +71,8 @@ export async function fetchPhotosByCategory(
           : '3/4'
         : '3/4',
     }))
+    cache.set(category, photos)
+    return photos
   } catch (error) {
     console.error(`[fetch-photos] Error fetching ${category} from Sanity:`, error)
     console.warn(`[fetch-photos] Falling back to static images for ${category}`)
