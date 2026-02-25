@@ -2539,7 +2539,6 @@ body:not(.studio)::-webkit-scrollbar {
   border: none;
   border-radius: 0;
   box-shadow: none;
-  overflow: hidden;
   /* maschera il movimento */
   position: absolute;
   top: 50%;
@@ -2548,7 +2547,7 @@ body:not(.studio)::-webkit-scrollbar {
 }
 
 .trail-title {
-  font-size: clamp(48px, 12vw, 128px);
+  font-size: clamp(40px, 9vw, 100px);
   font-weight: 400;
   line-height: 0.68;
   /* più compatto */
@@ -2577,8 +2576,8 @@ body:not(.studio)::-webkit-scrollbar {
 
 .trail-title-line {
   display: block;
-  overflow: hidden;
-  /* maschera l'animazione verticale */
+  white-space: nowrap;
+  clip-path: inset(-0.35em -0.05em -0.15em -0.05em);
 }
 
 .trail-title .char {
