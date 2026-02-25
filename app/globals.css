@@ -68,6 +68,14 @@
   padding-bottom: 0 !important;
 }
 
+/* Desktop: caption e switcher in fondo solo nella reel view */
+@media (min-width: 769px) {
+  .is-reel .work-caption,
+  .is-reel .work-view-toggle {
+    bottom: 2em !important;
+  }
+}
+
 /* Mobile: forza rem fisso per allineamento consistente (em varia per font-size ereditato) */
 @media (max-width: 768px) {
   .is-grid .work-caption,

@@ -63,7 +63,9 @@ export async function fetchPhotosByCategory(
       caption: photo.caption,
       category: photo.category,
       subcategory: photo.subcategory,
-      src: photo.image?.asset?.url || getFallbackPhotoPath(category, 1),
+      src: photo.image?.asset?.url
+        ? `${photo.image.asset.url}?w=1400&auto=format&q=80`
+        : getFallbackPhotoPath(category, 1),
       span: 1,
       aspect: photo.image?.asset?.metadata?.dimensions
         ? photo.image.asset.metadata.dimensions.width > photo.image.asset.metadata.dimensions.height
