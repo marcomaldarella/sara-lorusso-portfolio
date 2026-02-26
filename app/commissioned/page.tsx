@@ -95,7 +95,7 @@ function CommissionedContent() {
   const sliderRef = useRef<HTMLDivElement>(null)
   const totalPhotos = currentImages.length
   const photoCounter = `${formatCounter(heroIndex + 1)}/${formatCounter(totalPhotos)}`
-  const reelImages = useMemo(() => (currentImages.length > 0 ? [...currentImages, ...currentImages] : []), [currentImages])
+  const reelImages = useMemo(() => (currentImages.length > 0 ? [...currentImages, ...currentImages, ...currentImages] : []), [currentImages])
 
   // Array ripetuto per marquee - garantisce copertura completa viewport
   const marqueeImages = useMemo(() => {
@@ -150,93 +150,111 @@ function CommissionedContent() {
   }, [currentImages, isLoadingPhotos])
 
   useEffect(() => {
-    if (viewMode === 'reel' && reelRef.current) {
-      const reel = reelRef.current
-      let autoRaf = 0
+    if (viewMode !== 'reel' || !reelRef.current) return
 
-      // Track which subcategory is currently visible
-      const updateSubcategory = () => {
-        const reelRect = reel.getBoundingClientRect()
-        const centerX = reelRect.left + reelRect.width / 2
-        const items = reel.querySelectorAll('.work-reel-item')
-        let found = ''
-        items.forEach((item) => {
-          const rect = item.getBoundingClientRect()
-          if (rect.left <= centerX && rect.right >= centerX) {
-            found = (item as HTMLElement).dataset.subcategory || ''
-          }
-        })
-        if (found && found !== currentSubcategory) {
-          setSubcategoryOpacity(0)
-          setTimeout(() => {
-            setCurrentSubcategory(found)
-            setSubcategoryOpacity(1)
-          }, 150)
-        } else if (found && found === currentSubcategory) {
-          setSubcategoryOpacity(1)
+    const reel = reelRef.current
+    const track = reel.querySelector('.work-reel-track') as HTMLElement
+    if (!track) return
+
+    let animRaf = 0
+    let targetScrollX = 0
+    let currentScrollX = 0
+    const smoothFactor = 0.08
+    let localSubcategory = ''
+
+    const updateSubcategory = () => {
+      const reelRect = reel.getBoundingClientRect()
+      const centerX = reelRect.left + reelRect.width / 2
+      const items = reel.querySelectorAll('.work-reel-item')
+      let found = ''
+      items.forEach((item) => {
+        const rect = item.getBoundingClientRect()
+        if (rect.left <= centerX && rect.right >= centerX) {
+          found = (item as HTMLElement).dataset.subcategory || ''
         }
-      }
-
-      // Wheel: traduce scroll verticale in orizzontale
-      const onWheel = (e: WheelEvent) => {
-        e.preventDefault()
-        reel.scrollLeft += e.deltaY + e.deltaX
-      }
-
-      const onScroll = () => {
-        const half = reel.scrollWidth / 2
-        if (reel.scrollLeft >= half) {
-          reel.scrollLeft -= half
-        } else if (reel.scrollLeft <= 0) {
-          reel.scrollLeft += half
-        }
-        updateSubcategory()
-      }
-
-      // Touch: swipe verticale = scroll orizzontale
-      let touchStartY = 0
-      let touchStartX = 0
-
-      const onTouchStart = (e: TouchEvent) => {
-        touchStartY = e.touches[0].clientY
-        touchStartX = e.touches[0].clientX
-      }
-
-      const onTouchMove = (e: TouchEvent) => {
-        e.preventDefault()
-        const deltaY = touchStartY - e.touches[0].clientY
-        const deltaX = touchStartX - e.touches[0].clientX
-        reel.scrollLeft += deltaY + deltaX
-        touchStartY = e.touches[0].clientY
-        touchStartX = e.touches[0].clientX
-      }
-
-      reel.addEventListener('wheel', onWheel, { passive: false })
-      reel.addEventListener('scroll', onScroll)
-      reel.addEventListener('touchstart', onTouchStart, { passive: true })
-      reel.addEventListener('touchmove', onTouchMove, { passive: false })
-
-      requestAnimationFrame(() => {
-        reel.scrollLeft = reel.scrollWidth / 4
-        updateSubcategory()
       })
-      const tick = () => {
-        reel.scrollLeft += 0.35
-        autoRaf = requestAnimationFrame(tick)
-      }
-      autoRaf = requestAnimationFrame(tick)
-
-      return () => {
-        reel.removeEventListener('wheel', onWheel)
-        reel.removeEventListener('scroll', onScroll)
-        reel.removeEventListener('touchstart', onTouchStart)
-        reel.removeEventListener('touchmove', onTouchMove)
-        if (autoRaf) cancelAnimationFrame(autoRaf)
+      if (found && found !== localSubcategory) {
+        localSubcategory = found
+        setSubcategoryOpacity(0)
+        setTimeout(() => {
+          setCurrentSubcategory(found)
+          setSubcategoryOpacity(1)
+        }, 150)
       }
     }
 
-    return undefined
-  }, [viewMode, currentSubcategory])
+    const startAnimation = (sequenceWidth: number) => {
+      targetScrollX = sequenceWidth
+      currentScrollX = sequenceWidth
+      track.style.transform = `translateX(-${currentScrollX}px)`
+      updateSubcategory()
+
+      const checkBoundary = () => {
+        if (currentScrollX > sequenceWidth * 1.5) {
+          targetScrollX -= sequenceWidth
+          currentScrollX -= sequenceWidth
+          track.style.transform = `translateX(-${currentScrollX}px)`
+        } else if (currentScrollX < sequenceWidth * 0.5) {
+          targetScrollX += sequenceWidth
+          currentScrollX += sequenceWidth
+          track.style.transform = `translateX(-${currentScrollX}px)`
+        }
+      }
+
+      const animate = () => {
+        targetScrollX += 0.4
+        currentScrollX += (targetScrollX - currentScrollX) * smoothFactor
+        track.style.transform = `translateX(-${currentScrollX}px)`
+        checkBoundary()
+        updateSubcategory()
+        animRaf = requestAnimationFrame(animate)
+      }
+      animRaf = requestAnimationFrame(animate)
+    }
+
+    // Aspetta che le immagini abbiano layout (doppio rAF per immagini in cache)
+    const tryInit = () => {
+      const sw = track.offsetWidth / 3
+      if (sw > 0) {
+        startAnimation(sw)
+      } else {
+        animRaf = requestAnimationFrame(tryInit)
+      }
+    }
+    animRaf = requestAnimationFrame(() => requestAnimationFrame(tryInit))
+
+    const onWheel = (e: WheelEvent) => {
+      e.preventDefault()
+      targetScrollX += e.deltaY + e.deltaX
+    }
+
+    let touchStartX = 0
+    let touchStartY = 0
+    const onTouchStart = (e: TouchEvent) => {
+      touchStartX = e.touches[0].clientX
+      touchStartY = e.touches[0].clientY
+    }
+    const onTouchMove = (e: TouchEvent) => {
+      e.preventDefault()
+      const deltaX = touchStartX - e.touches[0].clientX
+      const deltaY = touchStartY - e.touches[0].clientY
+      targetScrollX += deltaX + deltaY
+      touchStartX = e.touches[0].clientX
+      touchStartY = e.touches[0].clientY
+    }
+
+    reel.addEventListener('wheel', onWheel, { passive: false })
+    reel.addEventListener('touchstart', onTouchStart, { passive: true })
+    reel.addEventListener('touchmove', onTouchMove, { passive: false })
+
+    return () => {
+      reel.removeEventListener('wheel', onWheel)
+      reel.removeEventListener('touchstart', onTouchStart)
+      reel.removeEventListener('touchmove', onTouchMove)
+      cancelAnimationFrame(animRaf)
+      track.style.transform = ''
+    }
+  }, [viewMode])
 
   // Smooth scroll + marquee: LOOP e TRANSLATE insieme con inerzia
   useEffect(() => {
@@ -253,28 +271,20 @@ function CommissionedContent() {
     let rafId = 0
     let initTimeout: NodeJS.Timeout
 
-    // Misura la larghezza reale di uno span dal DOM
-    const measureSpanWidth = () => {
-      return trackA.scrollWidth || trackA.offsetWidth || marqueeImages.length * 60
-    }
-
     // Delay iniziale per permettere al DOM di essere pronto dopo navigazione
     initTimeout = setTimeout(() => {
-      const SPAN_WIDTH = measureSpanWidth()
+      // THUMB_WIDTH costante dal CSS (50px width + 10px gap), non misurato dal DOM
+      // che su mobile restituisce il container width invece dello scroll width totale
+      const THUMB_WIDTH = 60
+      const SPAN_WIDTH = marqueeImages.length * THUMB_WIDTH
+      const paddingLeft = 0
       const viewportWidth = window.innerWidth
-
-      // Calcola THUMB_WIDTH reale dalla misurazione (escludendo padding del container)
-      const trackStyles = getComputedStyle(trackA)
-      const paddingLeft = parseFloat(trackStyles.paddingLeft || '0')
-      const paddingX = paddingLeft + parseFloat(trackStyles.paddingRight || '0')
-      const THUMB_WIDTH = (SPAN_WIDTH - paddingX) / marqueeImages.length
 
       const SCROLL_MULTIPLIER = 0.5
       const MIN_VELOCITY = 0.1
 
       // Calcola offset iniziale per centrare la PRIMA immagine
-      // La prima immagine deve essere al centro del viewport
-      const initialOffset = viewportWidth / 2 - (paddingLeft + THUMB_WIDTH / 2)
+      const initialOffset = viewportWidth / 2 - THUMB_WIDTH / 2
 
       // Stato scroll con inerzia - partendo da offset per centrare img 1
       let targetScroll = -initialOffset / SCROLL_MULTIPLIER
@@ -459,7 +469,7 @@ function CommissionedContent() {
 
         {/* View Switcher - moves up in grid to avoid marquee */}
         {isLoaded && <div className={`fixed right-[1em] z-[100] flex items-end gap-4 text-xs nav-menu work-view-toggle transition-all duration-300 ease-out ${viewMode === 'grid' ? 'bottom-[calc(6em+2%)]' : 'bottom-[calc(1em+5%)]'}`}>
-          <span className="pointer-events-none work-photo-counter">{photoCounter}</span>
+          {viewMode === 'grid' && <span className="pointer-events-none work-photo-counter">{photoCounter}</span>}
           <button
             type="button"
             onClick={(e) => {

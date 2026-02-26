@@ -83,7 +83,7 @@ export default function PersonalPage() {
   const photoCounter = `${formatCounter(heroIndex + 1)}/${formatCounter(totalPhotos)}`
 
   // Array ripetuto per reel - garantisce loop infinito
-  const reelImages = useMemo(() => (images.length > 0 ? [...images, ...images] : []), [images])
+  const reelImages = useMemo(() => (images.length > 0 ? [...images, ...images, ...images] : []), [images])
 
   // Array ripetuto per marquee - garantisce copertura completa viewport
   const marqueeImages = useMemo(() => {
@@ -135,87 +135,85 @@ export default function PersonalPage() {
   }, [images, isLoadingPhotos])
 
   useEffect(() => {
-    if (viewMode === 'reel' && reelRef.current) {
-      const reel = reelRef.current
-      let autoRaf = 0
-      let isUserInteracting = false
-      let interactionTimeout: NodeJS.Timeout | null = null
+    if (viewMode !== 'reel' || !reelRef.current) return
 
-      const onWheel = (e: WheelEvent) => {
-        e.preventDefault()
-        isUserInteracting = true
-        clearTimeout(interactionTimeout!)
-        reel.scrollLeft += e.deltaY + e.deltaX
-        interactionTimeout = setTimeout(() => {
-          isUserInteracting = false
-        }, 1500)
-      }
+    const reel = reelRef.current
+    const track = reel.querySelector('.work-reel-track') as HTMLElement
+    if (!track) return
 
-      const onScroll = () => {
-        const half = reel.scrollWidth / 2
-        if (reel.scrollLeft >= half) {
-          reel.scrollLeft -= half
-        } else if (reel.scrollLeft <= 0) {
-          reel.scrollLeft += half
+    let animRaf = 0
+    let targetScrollX = 0
+    let currentScrollX = 0
+    const smoothFactor = 0.08
+
+    const startAnimation = (sequenceWidth: number) => {
+      targetScrollX = sequenceWidth
+      currentScrollX = sequenceWidth
+      track.style.transform = `translateX(-${currentScrollX}px)`
+
+      const checkBoundary = () => {
+        if (currentScrollX > sequenceWidth * 1.5) {
+          targetScrollX -= sequenceWidth
+          currentScrollX -= sequenceWidth
+          track.style.transform = `translateX(-${currentScrollX}px)`
+        } else if (currentScrollX < sequenceWidth * 0.5) {
+          targetScrollX += sequenceWidth
+          currentScrollX += sequenceWidth
+          track.style.transform = `translateX(-${currentScrollX}px)`
         }
       }
 
-      let touchStartY = 0
-      let touchStartX = 0
-
-      const onTouchStart = (e: TouchEvent) => {
-        isUserInteracting = true
-        clearTimeout(interactionTimeout!)
-        touchStartY = e.touches[0].clientY
-        touchStartX = e.touches[0].clientX
+      const animate = () => {
+        targetScrollX += 0.4
+        currentScrollX += (targetScrollX - currentScrollX) * smoothFactor
+        track.style.transform = `translateX(-${currentScrollX}px)`
+        checkBoundary()
+        animRaf = requestAnimationFrame(animate)
       }
-
-      const onTouchMove = (e: TouchEvent) => {
-        e.preventDefault()
-        const deltaY = touchStartY - e.touches[0].clientY
-        const deltaX = touchStartX - e.touches[0].clientX
-        // Converte sia Y che X in scroll orizzontale
-        reel.scrollLeft += deltaY + deltaX
-        touchStartY = e.touches[0].clientY
-        touchStartX = e.touches[0].clientX
-      }
-
-      const onTouchEnd = () => {
-        interactionTimeout = setTimeout(() => {
-          isUserInteracting = false
-        }, 1500)
-      }
-
-      reel.addEventListener('wheel', onWheel, { passive: false })
-      reel.addEventListener('scroll', onScroll)
-      reel.addEventListener('touchstart', onTouchStart, { passive: true })
-      reel.addEventListener('touchmove', onTouchMove, { passive: false })
-      reel.addEventListener('touchend', onTouchEnd, { passive: true })
-
-      requestAnimationFrame(() => {
-        reel.scrollLeft = reel.scrollWidth / 4
-      })
-      const tick = () => {
-        // Auto-scroll leggero anche su mobile, ma pausa se l'utente interagisce
-        if (!isUserInteracting) {
-          reel.scrollLeft += 0.35
-        }
-        autoRaf = requestAnimationFrame(tick)
-      }
-      autoRaf = requestAnimationFrame(tick)
-
-      return () => {
-        reel.removeEventListener('wheel', onWheel)
-        reel.removeEventListener('scroll', onScroll)
-        reel.removeEventListener('touchstart', onTouchStart)
-        reel.removeEventListener('touchmove', onTouchMove)
-        reel.removeEventListener('touchend', onTouchEnd)
-        if (autoRaf) cancelAnimationFrame(autoRaf)
-        if (interactionTimeout) clearTimeout(interactionTimeout)
-      }
+      animRaf = requestAnimationFrame(animate)
     }
 
-    return undefined
+    const tryInit = () => {
+      const sw = track.offsetWidth / 3
+      if (sw > 0) {
+        startAnimation(sw)
+      } else {
+        animRaf = requestAnimationFrame(tryInit)
+      }
+    }
+    animRaf = requestAnimationFrame(() => requestAnimationFrame(tryInit))
+
+    const onWheel = (e: WheelEvent) => {
+      e.preventDefault()
+      targetScrollX += e.deltaY + e.deltaX
+    }
+
+    let touchStartX = 0
+    let touchStartY = 0
+    const onTouchStart = (e: TouchEvent) => {
+      touchStartX = e.touches[0].clientX
+      touchStartY = e.touches[0].clientY
+    }
+    const onTouchMove = (e: TouchEvent) => {
+      e.preventDefault()
+      const deltaX = touchStartX - e.touches[0].clientX
+      const deltaY = touchStartY - e.touches[0].clientY
+      targetScrollX += deltaX + deltaY
+      touchStartX = e.touches[0].clientX
+      touchStartY = e.touches[0].clientY
+    }
+
+    reel.addEventListener('wheel', onWheel, { passive: false })
+    reel.addEventListener('touchstart', onTouchStart, { passive: true })
+    reel.addEventListener('touchmove', onTouchMove, { passive: false })
+
+    return () => {
+      reel.removeEventListener('wheel', onWheel)
+      reel.removeEventListener('touchstart', onTouchStart)
+      reel.removeEventListener('touchmove', onTouchMove)
+      cancelAnimationFrame(animRaf)
+      track.style.transform = ''
+    }
   }, [viewMode])
 
   // Smooth scroll + marquee: LOOP e TRANSLATE insieme con inerzia
@@ -233,28 +231,20 @@ export default function PersonalPage() {
     let rafId = 0
     let initTimeout: NodeJS.Timeout
 
-    // Misura la larghezza reale di uno span dal DOM
-    const measureSpanWidth = () => {
-      return trackA.scrollWidth || trackA.offsetWidth || marqueeImages.length * 60
-    }
-
     // Delay iniziale per permettere al DOM di essere pronto dopo navigazione
     initTimeout = setTimeout(() => {
-      const SPAN_WIDTH = measureSpanWidth()
+      // THUMB_WIDTH costante dal CSS (50px width + 10px gap), non misurato dal DOM
+      // che su mobile restituisce il container width invece dello scroll width totale
+      const THUMB_WIDTH = 60
+      const SPAN_WIDTH = marqueeImages.length * THUMB_WIDTH
+      const paddingLeft = 0
       const viewportWidth = window.innerWidth
-
-      // Calcola THUMB_WIDTH reale dalla misurazione (escludendo padding del container)
-      const trackStyles = getComputedStyle(trackA)
-      const paddingLeft = parseFloat(trackStyles.paddingLeft || '0')
-      const paddingX = paddingLeft + parseFloat(trackStyles.paddingRight || '0')
-      const THUMB_WIDTH = (SPAN_WIDTH - paddingX) / marqueeImages.length
 
       const SCROLL_MULTIPLIER = 0.5
       const MIN_VELOCITY = 0.1
 
       // Calcola offset iniziale per centrare la PRIMA immagine
-      // La prima immagine deve essere al centro del viewport
-      const initialOffset = viewportWidth / 2 - (paddingLeft + THUMB_WIDTH / 2)
+      const initialOffset = viewportWidth / 2 - THUMB_WIDTH / 2
 
       // Stato scroll con inerzia - partendo da offset per centrare img 1
       let targetScroll = -initialOffset / SCROLL_MULTIPLIER
@@ -425,7 +415,7 @@ export default function PersonalPage() {
 
         {/* View Switcher - moves up in grid to avoid marquee */}
         <div className={`fixed right-[1em] z-[100] flex items-end gap-4 text-xs nav-menu work-view-toggle transition-all duration-300 ease-out ${viewMode === 'grid' ? 'bottom-[calc(6em+2%)]' : 'bottom-[calc(1em+5%)]'}`}>
-          <span className="pointer-events-none work-photo-counter">{photoCounter}</span>
+          {viewMode === 'grid' && <span className="pointer-events-none work-photo-counter">{photoCounter}</span>}
           <button
             type="button"
             onClick={(e) => {
