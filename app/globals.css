@@ -859,8 +859,8 @@ body:not(.studio) main {
   position: absolute;
   top: var(--nav-height);
   /* Spazio per nav */
-  bottom: calc(var(--marquee-height) + env(safe-area-inset-bottom));
-  /* Spazio per marquee + safe area */
+  bottom: calc(var(--marquee-height) + env(safe-area-inset-bottom) + 5vh);
+  /* Spazio per marquee + respiro sopra il marquee */
   left: 0;
   right: 0;
   display: flex;
@@ -942,7 +942,7 @@ body:not(.studio) main {
 /* Span contenitore per loop infinito */
 .works-marquee-span {
   display: flex;
-  gap: 10px;
+  gap: 4px;
   align-items: center;
   height: 100%;
   padding: 10px 4px;
@@ -1021,7 +1021,7 @@ body:not(.studio) main {
   }
 
   .works-marquee-span {
-    gap: 6px;
+    gap: 3px;
     padding: 8px 0;
   }
 
@@ -1056,7 +1056,7 @@ body:not(.studio) main {
   }
 
   .works-marquee-span {
-    gap: 4px;
+    gap: 2px;
     padding: 6px 0;
   }
 

@@ -273,9 +273,9 @@ function CommissionedContent() {
 
     // Delay iniziale per permettere al DOM di essere pronto dopo navigazione
     initTimeout = setTimeout(() => {
-      // THUMB_WIDTH costante dal CSS (50px width + 10px gap), non misurato dal DOM
-      // che su mobile restituisce il container width invece dello scroll width totale
-      const THUMB_WIDTH = 60
+      // THUMB_WIDTH dinamico: deve specchiare gap CSS (4px desktop, 3px tablet, 2px mobile)
+      const gap = window.innerWidth <= 480 ? 2 : window.innerWidth <= 768 ? 3 : 4
+      const THUMB_WIDTH = 50 + gap
       const SPAN_WIDTH = marqueeImages.length * THUMB_WIDTH
       const paddingLeft = 0
       const viewportWidth = window.innerWidth
