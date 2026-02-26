@@ -314,8 +314,11 @@ function CommissionedContent() {
         trackB.style.transform = `translateX(${loopedPosition - SPAN_WIDTH}px)`
         trackC.style.transform = `translateX(${loopedPosition + SPAN_WIDTH}px)`
 
-        const centerIndex = getCenterImageIndex(loopedPosition)
-        setHeroIndex(centerIndex)
+        // Calcola heroIndex dall'offset cumulativo (non dal looped) per evitare salti al wrap
+        const scrolledThumbs = (initialOffset - rawPosition) / THUMB_WIDTH
+        const len = Math.max(1, currentImages.length)
+        const idx = ((Math.round(scrolledThumbs) % len) + len) % len
+        setHeroIndex(idx)
       }
 
       const tick = () => {
@@ -351,17 +354,21 @@ function CommissionedContent() {
         syncNow()
       }
 
-      // Touch handlers
+      // Touch handlers - traccia sia X che Y per supportare swipe orizzontale e verticale
+      let touchStartX = 0
       let touchStartY = 0
 
       const onTouchStart = (e: TouchEvent) => {
+        touchStartX = e.touches[0].clientX
         touchStartY = e.touches[0].clientY
       }
 
       const onTouchMove = (e: TouchEvent) => {
+        const deltaX = touchStartX - e.touches[0].clientX
         const deltaY = touchStartY - e.touches[0].clientY
+        touchStartX = e.touches[0].clientX
         touchStartY = e.touches[0].clientY
-        targetScroll += deltaY * 0.5
+        targetScroll += (deltaX + deltaY) * 0.5
       }
 
       const onTouchEnd = () => {}
