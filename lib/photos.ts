@@ -43,13 +43,15 @@ export async function getPhotosForCanvas(): Promise<MediaItem[]> {
     }
     
     return photos.map(photo => ({
-      url: urlFor(photo.image).url(),
+      url: photo.image?.asset?.url
+        ? `${photo.image.asset.url}?w=1400&auto=format&q=80`
+        : '',
       width: photo.image.asset.metadata.dimensions.width,
       height: photo.image.asset.metadata.dimensions.height,
       _id: photo._id,
       category: photo.category,
       caption: photo.caption
-    }))
+    })).filter(p => p.url)
   } catch (error) {
     console.warn('Failed to fetch photos from Sanity, falling back to static images:', error)
     
@@ -59,15 +61,15 @@ export async function getPhotosForCanvas(): Promise<MediaItem[]> {
 }
 
 function getStaticImages(): MediaItem[] {
-  const workImages = Array.from({ length: 63 }, (_, i) => 
-    `/works/${String(i + 1).padStart(2, '0')}.jpg`
+  const personalImages = Array.from({ length: 63 }, (_, i) =>
+    `/personal/${String(i + 1).padStart(2, '0')}.jpg`
   )
-  const commissionedImages = Array.from({ length: 26 }, (_, i) => 
+  const commissionedImages = Array.from({ length: 26 }, (_, i) =>
     `/commissioned/${String(i + 1).padStart(2, '0')}.jpg`
   )
-  
-  const allImages = [...workImages, ...commissionedImages]
-  
+
+  const allImages = [...personalImages, ...commissionedImages]
+
   return allImages.map(url => ({
     url,
     width: 3,

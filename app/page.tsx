@@ -53,7 +53,7 @@ const filterWorkOnly = (items: TrailPhoto[]) =>
   items.filter((item) => {
     if (!item?.url) return false
     if (item.category === "commissioned") return false
-    if (item.category === "work") return true
+    if (item.category === "work" || item.category === "personal") return true
     // fallback for static assets
     if (item.url.includes("/commissioned/")) return false
     return true
