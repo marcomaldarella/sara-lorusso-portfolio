@@ -1,42 +1,81 @@
-"use client"
-
 import type React from "react"
+import type { Metadata } from "next"
 import { Geist, Geist_Mono } from "next/font/google"
-import { Analytics } from "@vercel/analytics/next"
-import { usePathname } from "next/navigation"
-import Navigation from "@/components/navigation"
+import ClientLayout from "@/components/client-layout"
 import "./globals.css"
-import dynamic from 'next/dynamic'
-
-const CookieBanner = dynamic(() => import('@/components/cookie-banner'), { ssr: false })
 
 const _geist = Geist({ subsets: ["latin"] })
 const _geistMono = Geist_Mono({ subsets: ["latin"] })
+
+const BASE_URL = "https://saralorusso.com"
+
+export const metadata: Metadata = {
+  metadataBase: new URL(BASE_URL),
+  title: {
+    default: "Sara Lorusso",
+    template: "%s — Sara Lorusso",
+  },
+  description:
+    "A visual practice exploring vulnerability through personal and collective experience.",
+  openGraph: {
+    title: "Sara Lorusso",
+    description:
+      "A visual practice exploring vulnerability through personal and collective experience.",
+    url: BASE_URL,
+    siteName: "Sara Lorusso",
+    images: [
+      {
+        url: "/apple-icon.png",
+        width: 1024,
+        height: 1024,
+        alt: "Sara Lorusso",
+      },
+    ],
+    locale: "it_IT",
+    type: "website",
+  },
+  twitter: {
+    card: "summary_large_image",
+    title: "Sara Lorusso",
+    description:
+      "A visual practice exploring vulnerability through personal and collective experience.",
+    images: ["/apple-icon.png"],
+  },
+  alternates: {
+    canonical: BASE_URL,
+  },
+  icons: {
+    icon: [
+      {
+        url: "data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>🦪</text></svg>",
+        type: "image/svg+xml",
+      },
+    ],
+    apple: "/apple-icon.png",
+  },
+}
 
 export default function RootLayout({
   children,
 }: Readonly<{
   children: React.ReactNode
 }>) {
-  const pathname = usePathname()
-  const isStudio = pathname?.startsWith("/studio")
-  const showNavigation = !isStudio && pathname !== "/landing"
-  const hideNavName = pathname === "/" || pathname === "/about"
-
   return (
     <html lang="it" suppressHydrationWarning>
       <head>
-        <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>🦪</text></svg>" />
-        <meta name="viewport" content="width=device-width, initial-scale=1" />
-        <meta name="description" content="Sara Lorusso - Portfolio Fotografico" />
-        <title>Sara Lorusso - Portfolio</title>
+        <script
+          type="application/ld+json"
+          dangerouslySetInnerHTML={{
+            __html: JSON.stringify({
+              "@context": "https://schema.org",
+              "@type": "WebSite",
+              name: "Sara Lorusso",
+              url: BASE_URL,
+            }),
+          }}
+        />
       </head>
-      <body className={`font-sans antialiased${isStudio ? " studio" : ""}`}>
-        {showNavigation && <Navigation hideName={hideNavName} />}
-        {children}
-        {!isStudio && <CookieBanner />}
-        {!isStudio && <Analytics />}
-      </body>
+      <ClientLayout>{children}</ClientLayout>
     </html>
   )
 }
