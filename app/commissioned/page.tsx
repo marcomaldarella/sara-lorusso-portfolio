@@ -90,6 +90,7 @@ function CommissionedContent() {
   const [isLoaded, setIsLoaded] = useState(false)
   const [marqueeIterations, setMarqueeIterations] = useState(4)
   const [currentSubcategory, setCurrentSubcategory] = useState<string>('')
+  const [currentCaption, setCurrentCaption] = useState<string>('')
   const [subcategoryOpacity, setSubcategoryOpacity] = useState(0)
   const reelRef = useRef<HTMLDivElement>(null)
   const sliderRef = useRef<HTMLDivElement>(null)
@@ -161,23 +162,37 @@ function CommissionedContent() {
     let currentScrollX = 0
     const smoothFactor = 0.08
     let localSubcategory = ''
+    let localCaption = ''
+    let localOriginalIndex = -1
 
     const updateSubcategory = () => {
       const reelRect = reel.getBoundingClientRect()
       const centerX = reelRect.left + reelRect.width / 2
       const items = reel.querySelectorAll('.work-reel-item')
       let found = ''
+      let foundCaption = ''
+      let foundOriginalIndex = -1
       items.forEach((item) => {
         const rect = item.getBoundingClientRect()
         if (rect.left <= centerX && rect.right >= centerX) {
           found = (item as HTMLElement).dataset.subcategory || ''
+          foundCaption = (item as HTMLElement).dataset.caption || ''
+          foundOriginalIndex = parseInt((item as HTMLElement).dataset.originalIndex || '-1', 10)
         }
       })
-      if (found && found !== localSubcategory) {
+      // Aggiorna sempre il counter quando cambia la foto centrata
+      if (foundOriginalIndex >= 0 && foundOriginalIndex !== localOriginalIndex) {
+        localOriginalIndex = foundOriginalIndex
+        setHeroIndex(foundOriginalIndex)
+      }
+      // Aggiorna la caption con fade solo quando cambia testo
+      if (found !== localSubcategory || foundCaption !== localCaption) {
         localSubcategory = found
+        localCaption = foundCaption
         setSubcategoryOpacity(0)
         setTimeout(() => {
           setCurrentSubcategory(found)
+          setCurrentCaption(foundCaption)
           setSubcategoryOpacity(1)
         }, 150)
       }
@@ -445,31 +460,28 @@ function CommissionedContent() {
         {/* Main content - only render when photos are loaded */}
         {currentImages.length > 0 && (
         <>
-        {/* Caption - visible in all views, same baseline as counter */}
-        {isLoaded && currentImages[heroIndex]?.caption && (
-          <div className={`work-caption fixed left-[1em] z-[90] text-xs pointer-events-none transition-all duration-300 ease-out max-w-[45vw] md:max-w-[40vw] line-clamp-2 md:line-clamp-1 ${viewMode === 'grid' ? 'bottom-[calc(6em+2%)]' : 'bottom-[calc(1em+5%)]'}`}>
-            {currentImages[heroIndex]!.caption}
+        {/* Counter - bottom-left, stesso padding del toggle button per allineamento */}
+        {isLoaded && (
+          <div className={`fixed left-[1em] z-[90] flex items-center text-xs pointer-events-none transition-all duration-300 ease-out ${viewMode === 'grid' ? 'bottom-[calc(6em+2%)]' : 'bottom-[calc(1em+5%)]'}`}>
+            <span className="p-2">{photoCounter}</span>
           </div>
         )}
 
-        {/* Subcategory label - visible only in reel view */}
-        {viewMode === 'reel' && currentSubcategory && (
+        {/* Caption - reel view only, centrata verticalmente */}
+        {viewMode === 'reel' && currentCaption && (
           <div
-            className="fixed left-[1em] top-1/2 -translate-y-1/2 z-[90] text-xs pointer-events-none"
+            className="fixed left-[1em] top-1/2 -translate-y-1/2 z-[90] text-xs pointer-events-none max-w-[45vw]"
             style={{
-              mixBlendMode: 'difference',
-              color: '#fff',
               opacity: subcategoryOpacity,
               transition: 'opacity 0.3s ease-out',
             }}
           >
-            {currentSubcategory}
+            {currentCaption}
           </div>
         )}
 
         {/* View Switcher - moves up in grid to avoid marquee */}
         {isLoaded && <div className={`fixed right-[1em] z-[100] flex items-end gap-4 text-xs nav-menu work-view-toggle transition-all duration-300 ease-out ${viewMode === 'grid' ? 'bottom-[calc(6em+2%)]' : 'bottom-[calc(1em+5%)]'}`}>
-          {viewMode === 'grid' && <span className="pointer-events-none work-photo-counter">{photoCounter}</span>}
           <button
             type="button"
             onClick={(e) => {
@@ -582,7 +594,13 @@ function CommissionedContent() {
           <div ref={reelRef} className={`work-reel ${transitionPhase === 'out' ? 'view-fade-out' : ''} ${transitionPhase === 'in' ? 'view-fade-in' : ''}`}>
             <div className="work-reel-track">
               {reelImages.map((img, idx) => (
-                <div key={idx} className="work-reel-item" data-subcategory={img.subcategory || ''}>
+                <div
+                  key={idx}
+                  className="work-reel-item"
+                  data-subcategory={img.subcategory || ''}
+                  data-caption={img.caption || ''}
+                  data-original-index={String(idx % currentImages.length)}
+                >
                   <img
                     className="work-reel-img"
                     src={img.src}
