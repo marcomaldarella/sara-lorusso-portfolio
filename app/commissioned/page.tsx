@@ -460,13 +460,6 @@ function CommissionedContent() {
         {/* Main content - only render when photos are loaded */}
         {currentImages.length > 0 && (
         <>
-        {/* Counter - bottom-left, stesso padding del toggle button per allineamento */}
-        {isLoaded && (
-          <div className={`fixed left-[1em] z-[90] flex items-center text-xs pointer-events-none transition-all duration-300 ease-out ${viewMode === 'grid' ? 'bottom-[calc(6em+2%)]' : 'bottom-[calc(1em+5%)]'}`}>
-            <span className="p-2">{photoCounter}</span>
-          </div>
-        )}
-
         {/* Caption - reel view only, centrata verticalmente */}
         {viewMode === 'reel' && currentCaption && (
           <div
@@ -480,8 +473,9 @@ function CommissionedContent() {
           </div>
         )}
 
-        {/* View Switcher - moves up in grid to avoid marquee */}
-        {isLoaded && <div className={`fixed right-[1em] z-[100] flex items-end gap-4 text-xs nav-menu work-view-toggle transition-all duration-300 ease-out ${viewMode === 'grid' ? 'bottom-[calc(6em+2%)]' : 'bottom-[calc(1em+5%)]'}`}>
+        {/* Bottom bar: counter sinistra + toggle destra — stessa riga garantita */}
+        {isLoaded && <div className={`fixed left-[1em] right-[1em] z-[100] flex items-center justify-between text-xs nav-menu work-view-toggle pointer-events-none transition-all duration-300 ease-out ${viewMode === 'grid' ? 'bottom-[calc(6em+2%)]' : 'bottom-[calc(1em+5%)]'}`}>
+          <span className="work-photo-counter pointer-events-none" style={{ padding: '10px', marginTop: '3px' }}>{photoCounter}</span>
           <button
             type="button"
             onClick={(e) => {
