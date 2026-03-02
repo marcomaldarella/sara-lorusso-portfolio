@@ -475,7 +475,7 @@ function CommissionedContent() {
 
         {/* Bottom bar: counter sinistra + toggle destra — stessa riga garantita */}
         {isLoaded && <div className={`fixed left-[1em] right-[1em] z-[100] flex items-center justify-between text-xs nav-menu work-view-toggle pointer-events-none transition-all duration-300 ease-out ${viewMode === 'grid' ? 'bottom-[calc(6em+2%)]' : 'bottom-[calc(1em+5%)]'}`}>
-          <span className="work-photo-counter pointer-events-none" style={{ padding: '10px', marginTop: '3px' }}>{photoCounter}</span>
+          <span className="work-photo-counter pointer-events-none" style={{ padding: '10px' }}>{photoCounter}</span>
           <button
             type="button"
             onClick={(e) => {
