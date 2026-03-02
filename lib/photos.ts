@@ -44,7 +44,7 @@ export async function getPhotosForCanvas(): Promise<MediaItem[]> {
     
     return photos.map(photo => ({
       url: photo.image?.asset?.url
-        ? `${photo.image.asset.url}?w=1400&auto=format&q=80`
+        ? `${photo.image.asset.url}?w=3840&auto=format&q=92`
         : '',
       width: photo.image.asset.metadata.dimensions.width,
       height: photo.image.asset.metadata.dimensions.height,

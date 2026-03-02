@@ -5,6 +5,7 @@ const cache = new Map<string, PhotoImage[]>()
 
 export type PhotoImage = {
   src: string
+  thumbSrc?: string
   span: number
   aspect: string
   title?: string
@@ -64,8 +65,11 @@ export async function fetchPhotosByCategory(
       category: photo.category,
       subcategory: photo.subcategory,
       src: photo.image?.asset?.url
-        ? `${photo.image.asset.url}?w=1400&auto=format&q=80`
+        ? `${photo.image.asset.url}?w=3840&auto=format&q=92`
         : getFallbackPhotoPath(category, 1),
+      thumbSrc: photo.image?.asset?.url
+        ? `${photo.image.asset.url}?w=600&auto=format&q=80`
+        : undefined,
       span: 1,
       aspect: photo.image?.asset?.metadata?.dimensions
         ? photo.image.asset.metadata.dimensions.width > photo.image.asset.metadata.dimensions.height
