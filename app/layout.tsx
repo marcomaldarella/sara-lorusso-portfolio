@@ -25,9 +25,9 @@ export const metadata: Metadata = {
     siteName: "Sara Lorusso",
     images: [
       {
-        url: "/apple-icon.png",
-        width: 1024,
-        height: 1024,
+        url: "/opengraph-image",
+        width: 1200,
+        height: 630,
         alt: "Sara Lorusso",
       },
     ],
@@ -39,7 +39,7 @@ export const metadata: Metadata = {
     title: "Sara Lorusso",
     description:
       "A visual practice exploring vulnerability through personal and collective experience.",
-    images: ["/apple-icon.png"],
+    images: ["/opengraph-image"],
   },
   alternates: {
     canonical: BASE_URL,
