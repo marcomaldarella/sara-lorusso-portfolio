@@ -21,7 +21,7 @@ export default function CookieBanner() {
   }
 
   return (
-    <div className="cookie-banner" role="dialog" aria-live="polite">
+    <div className="cookie-banner" role="dialog" aria-live="polite" data-nosnippet>
       <div className="cookie-banner-inner">
         <div className="cookie-banner-text">
           This site uses cookies to enhance your experience.<br />

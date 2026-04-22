@@ -36,6 +36,7 @@ export default function Navigation({ hideName = false }: NavigationProps) {
         >
           <span className="nav-name-lines">
             <span>Sara</span>
+            {' '}
             <span>Lorusso</span>
           </span>
         </Link>
