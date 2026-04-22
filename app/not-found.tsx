@@ -33,18 +33,6 @@ export default function NotFound() {
         >
           404
         </div>
-        <div
-          style={{
-            fontFamily: '"Messina Sans", system-ui, -apple-system, sans-serif',
-            fontWeight: 400,
-            fontSize: "clamp(32px, 6.5vw, 80px)",
-            letterSpacing: "-0.06em",
-            color: "#000",
-            marginTop: "0.3em",
-          }}
-        >
-          Sara Lorusso
-        </div>
       </div>
 
       <div className="trail-bottom">
