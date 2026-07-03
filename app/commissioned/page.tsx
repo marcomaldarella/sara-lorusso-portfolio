@@ -198,20 +198,30 @@ function CommissionedContent() {
       }
     }
 
-    const startAnimation = (sequenceWidth: number) => {
-      targetScrollX = sequenceWidth
-      currentScrollX = sequenceWidth
+    const startAnimation = (initialSeqWidth: number) => {
+      let seqW = initialSeqWidth
+      targetScrollX = seqW
+      currentScrollX = seqW
       track.style.transform = `translateX(-${currentScrollX}px)`
       updateSubcategory()
 
       const checkBoundary = () => {
-        if (currentScrollX > sequenceWidth * 1.5) {
-          targetScrollX -= sequenceWidth
-          currentScrollX -= sequenceWidth
+        // Aggiorna seqW se il track è cresciuto (immagini caricate dopo l'avvio)
+        const liveW = track.offsetWidth / 3
+        if (liveW > seqW) {
+          const ratio = liveW / seqW
+          currentScrollX *= ratio
+          targetScrollX *= ratio
+          seqW = liveW
           track.style.transform = `translateX(-${currentScrollX}px)`
-        } else if (currentScrollX < sequenceWidth * 0.5) {
-          targetScrollX += sequenceWidth
-          currentScrollX += sequenceWidth
+        }
+        if (currentScrollX > seqW * 1.5) {
+          targetScrollX -= seqW
+          currentScrollX -= seqW
+          track.style.transform = `translateX(-${currentScrollX}px)`
+        } else if (currentScrollX < seqW * 0.5) {
+          targetScrollX += seqW
+          currentScrollX += seqW
           track.style.transform = `translateX(-${currentScrollX}px)`
         }
       }
